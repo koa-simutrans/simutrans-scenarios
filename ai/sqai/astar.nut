@@ -10,22 +10,22 @@
  */
 class astar_node extends coord3d
 {
-  previous = null // previous node
-  cost     = -1   // cost to reach this node
-  dist     = -1   // distance to target
-  constructor(c, p, co, d)
-  {
-    x = c.x
-    y = c.y
-    z = c.z
-    previous = p
-    cost     = co
-    dist     = d
-  }
-  function is_straight_move(d)
-  {
-    return d == dir ||  (previous  &&  previous.dir == d)
-  }
+	previous = null // previous node
+	cost     = -1   // cost to reach this node
+	dist     = -1   // distance to target
+	constructor(c, p, co, d)
+	{
+		x = c.x
+		y = c.y
+		z = c.z
+		previous = p
+		cost     = co
+		dist     = d
+	}
+	function is_straight_move(d)
+	{
+		return d == dir ||  (previous  &&  previous.dir == d)
+	}
 }
 
 /**
@@ -44,174 +44,189 @@ class astar_node extends coord3d
  */
 class astar
 {
-  closed_list = null // table
-  nodes       = null // array of astar_node
-  heap        = null // binary heap
-  targets     = null // array of coord3d's
+	closed_list = null // table
+	nodes       = null // array of astar_node
+	heap        = null // binary heap
+	targets     = null // array of coord3d's
 
-  boundingbox = null // box containing all the targets
+	boundingbox = null // box containing all the targets
 
-  route       = null // route, reversed: target to start
+	route       = null // route, reversed: target to start
 
-  // statistics
-  calls_open = 0
-  calls_closed = 0
-  calls_pop = 0
+	// statistics
+	calls_open = 0
+	calls_closed = 0
+	calls_pop = 0
 
-  // costs - can be fine-tuned
-  cost_straight = 10
-  cost_curve    = 14
+	// costs - can be fine-tuned
+	cost_straight = 10
+	cost_curve    = 14
+	
+	// 探索回数に上限を設けるか
+	counter_max_flg = false
 
-  constructor()
-  {
-    closed_list = {}
-    heap        = simple_heap_x()
-    targets     = []
+	constructor()
+	{
+		closed_list = {}
+		heap        = simple_heap_x()
+		targets     = []
 
-  }
+	}
 
-  function prepare_search()
-  {
-    closed_list = {}
-    nodes       = []
-    route       = []
-    heap.clear()
-    targets     = []
-    calls_open = 0
-    calls_closed = 0
-    calls_pop = 0
-  }
+	function prepare_search()
+	{
+		closed_list = {}
+		nodes       = []
+		route       = []
+		heap.clear()
+		targets     = []
+		calls_open = 0
+		calls_closed = 0
+		calls_pop = 0
+	}
 
-  // adds node c to closed list
-  function add_to_close(c)
-  {
-    closed_list[ coord3d_to_key(c) ] <- 1
-    calls_closed++
-  }
+	// adds node c to closed list
+	function add_to_close(c)
+	{
+		closed_list[ coord3d_to_key(c) ] <- c.cost
+		calls_closed++
+	}
 
-  function test_and_close(c)
-  {
-    local key = coord3d_to_key(c)
-    if (key in closed_list) {
-      return false
-    }
-    else {
-      closed_list[ key ] <- 1
-      calls_closed++
-      return true
-    }
-  }
+	function test_and_close(c)
+	{
+		local key = coord3d_to_key(c)
+		if (key in closed_list) {
+			return false
+		}
+		else {
+			closed_list[ key ] <- c.cost
+			calls_closed++
+			return true
+		}
+	}
 
-  function is_closed(c)
-  {
-    local key = coord3d_to_key(c)
-    return (key in closed_list)
-  }
+	function is_closed(c)
+	{
+		local key = coord3d_to_key(c)
+		return (key in closed_list)
+	}
 
-  // add node c to open list with give weight
-  function add_to_open(c, weight)
-  {
-    local i = nodes.len()
-    nodes.append(c)
-    heap.insert(weight, i)
-    calls_open++
-  }
+	// add node c to open list with give weight
+	function add_to_open(c, weight)
+	{
+		local i = nodes.len()
+		nodes.append(c)
+		heap.insert(weight, i)
+		calls_open++
+	}
 
-  function search()
-  {
-    // compute bounding box of targets
-    compute_bounding_box()
+	function search()
+	{
+		// compute bounding box of targets
+		compute_bounding_box()
+		// 探索回数設定
+		local counter_max = -1
+		if (counter_max_flg && heap.len() == 1) {
+			counter_max = estimate_distance(nodes[0]) * 10
+		}
+		local current_node = null
+		local cnt=0
+		while (!heap.is_empty()) {
+			calls_pop++
 
-    local current_node = null
-    while (!heap.is_empty()) {
-      calls_pop++
+			local wi = heap.pop()
+			current_node = nodes[wi.value]
+			local dist = current_node.dist
 
-      local wi = heap.pop()
-      current_node = nodes[wi.value]
-      local dist = current_node.dist
+			// target reached
+			if (dist == 0) break;
+			// already visited previously
+			if (!test_and_close(current_node)) {
+				current_node = null
+				continue;
+			}
+			if (cnt == counter_max) {
+				current_node= null
+				break
+			}
+if(cnt!= 0 && cnt%2000==0){
+gui.add_message_at(our_player,cnt+". ["+current_node.x+","+current_node.y+"],to:["+coord_to_string(targets[0])+"],cost:"+current_node.cost+",dist:"+current_node.dist+",dir:"+current_node.dir+",flag:"+current_node.flag,current_node)
+}
+			cnt++
+			// investigate neighbours and put them into open list
+			process_node(current_node)
+			current_node = null
+		}
 
-      // target reached
-      if (dist == 0) break;
-      // already visited previously
-      if (!test_and_close(current_node)) {
-        current_node = null
-        continue;
-      }
-      // investigate neighbours and put them into open list
-      process_node(current_node)
+		route = []
+		if (current_node) {
+			// found route
+			route.append(current_node)
 
-      current_node = null
-    }
+			while (current_node.previous) {
+				current_node = current_node.previous
+				route.append(current_node)
+			}
+		}
 
-    route = []
-    if (current_node) {
-      // found route
-      route.append(current_node)
+		print("Calls: pop = " + calls_pop + ", open = " + calls_open + ", close = " + calls_closed)
+	}
 
-      while (current_node.previous) {
-        current_node = current_node.previous
-        route.append(current_node)
-      }
-    }
+	/**
+	 * Computes bounding box of all targets to speed up distance computation.
+	 */
+	function compute_bounding_box()
+	{
+		if (targets.len()>0) {
+			local first = targets[0]
+			boundingbox = { xmin = first.x, xmax = first.x, ymin = first.y, ymax = first.y }
 
-    print("Calls: pop = " + calls_pop + ", open = " + calls_open + ", close = " + calls_closed)
-  }
+			for(local i=1; i < targets.len(); i++) {
+				local t = targets[i]
+				if (boundingbox.xmin > t.x) boundingbox.xmin = t.x;
+				if (boundingbox.xmax < t.x) boundingbox.xmax = t.x;
+				if (boundingbox.ymin > t.y) boundingbox.ymin = t.y;
+				if (boundingbox.ymax < t.y) boundingbox.ymax = t.y;
+			}
+		}
+	}
 
-  /**
-   * Computes bounding box of all targets to speed up distance computation.
-   */
-  function compute_bounding_box()
-  {
-    if (targets.len()>0) {
-      local first = targets[0]
-      boundingbox = { xmin = first.x, xmax = first.x, ymin = first.y, ymax = first.y }
+	/**
+	 * Estimates distance to target.
+	 * Returns zero if and only if c is a target tile.
+	 */
+	function estimate_distance(c)
+	{
+		local d = 0
+		local curved = 0
 
-      for(local i=1; i < targets.len(); i++) {
-        local t = targets[i]
-        if (boundingbox.xmin > t.x) boundingbox.xmin = t.x;
-        if (boundingbox.xmax < t.x) boundingbox.xmax = t.x;
-        if (boundingbox.ymin > t.y) boundingbox.ymin = t.y;
-        if (boundingbox.ymax < t.y) boundingbox.ymax = t.y;
-      }
-    }
-  }
+		// distance to bounding box
+		local dx = boundingbox.xmin - c.x
+		if (dx <= 0) dx = c.x - boundingbox.xmax;
+		if (dx > 0) d += dx; else dx = 0;
 
-  /**
-   * Estimates distance to target.
-   * Returns zero if and only if c is a target tile.
-   */
-  function estimate_distance(c)
-  {
-    local d = 0
-    local curved = 0
+		local dy = boundingbox.ymin - c.y
+		if (dy <= 0) dy = c.y - boundingbox.ymax
+		if (dy > 0) d += dy; else dy = 0;
 
-    // distance to bounding box
-    local dx = boundingbox.xmin - c.x
-    if (dx <= 0) dx = c.x - boundingbox.xmax;
-    if (dx > 0) d += dx; else dx = 0;
+		if (d > 0) {
+			// cost to bounding box
+			return cost_straight * d + (dx*dy > 0 ? cost_curve - cost_straight : 0);
+		}
+		else {
+			local t = targets[0]
+			d = abs(t.x-c.x) + abs(t.y-c.y)
 
-    local dy = boundingbox.ymin - c.y
-    if (dy <= 0) dy = c.y - boundingbox.ymax
-    if (dy > 0) d += dy; else dy = 0;
-
-    if (d > 0) {
-      // cost to bounding box
-      return cost_straight * d + (dx*dy > 0 ? cost_curve - cost_straight : 0);
-    }
-    else {
-      local t = targets[0]
-      d = abs(t.x-c.x) + abs(t.y-c.y)
-
-      // inside bounding box
-      for(local i=1; i < targets.len(); i++) {
-        local t = targets[i]
-        local dx = abs(t.x-c.x)
-        local dy = abs(t.y-c.y)
-        d = min(d, cost_straight * (dx+dy) + (dx*dy > 0 ? cost_curve - cost_straight : 0))
-      }
-    }
-    return d
-  }
+			// inside bounding box
+			for(local i=1; i < targets.len(); i++) {
+				local t = targets[i]
+				local dx = abs(t.x-c.x)
+				local dy = abs(t.y-c.y)
+				d = min(d, cost_straight * (dx+dy) + (dx*dy > 0 ? cost_curve - cost_straight : 0))
+			}
+		}
+		return d
+	}
 }
 
 /**
@@ -219,82 +234,80 @@ class astar
  */
 class astar_route_finder extends astar
 {
-  wt = wt_all
+	wt = wt_all
 
-  constructor(wt_)
-  {
-    base.constructor()
-    wt = wt_
+	constructor(wt_)
+	{
+		base.constructor()
+		wt = wt_
     if ( [wt_all, wt_invalid, wt_water, wt_air].find(wt) ) {
-      throw("Using this waytype is going to be inefficient. Use at own risk.")
-    }
+			throw("Using this waytype is going to be inefficient. Use at own risk.")
+		}
     cost_curve = cost_straight
-  }
+	}
 
-  function process_node(cnode)
-  {
-    local from = tile_x(cnode.x, cnode.y, cnode.z)
-    local back = dir.backward(cnode.dir)
-    // allowed directions
-    local dirs = from.get_way_dirs_masked(wt)
+	function process_node(cnode)
+	{
+		local from = tile_x(cnode.x, cnode.y, cnode.z)
+		local back = dir.backward(cnode.dir)
+		// allowed directions
+		local dirs = from.get_way_dirs_masked(wt)
 
-    for(local d = 1; d<16; d*=2) {
-      // do not go backwards, only along existing ways
-      if ( d == back  ||  ( (dirs & d) == 0) ) {
-        continue
-      }
+		for(local d = 1; d<16; d*=2) {
+			// do not go backwards, only along existing ways
+			if ( d == back  ||  ( (dirs & d) == 0) ) {
+				continue
+			}
 
-      local to = from.get_neighbour(wt, d)
-      if (to) {
-        if (!is_closed(to)) {
-          // estimate moving cost
-          local move = cnode.is_straight_move(d)  ?  cost_straight  :  cost_curve
-          local dist   = estimate_distance(to)
-          local cost   = cnode.cost + move
-          local weight = cost //+ dist
-          local node = ab_node(to, cnode, cost, dist, d)
+			local to = from.get_neighbour(wt, d)
+			if (to) {
+				if (!is_closed(to)) {
+					// estimate moving cost
+					local move = cnode.is_straight_move(d)  ?  cost_straight  :  cost_curve
+					local dist   = estimate_distance(to)
+					local cost   = cnode.cost + move
+					local weight = cost //+ dist
+					local node = ab_node(to, cnode, cost, dist, d)
 
-          add_to_open(node, weight)
-        }
-      }
-    }
-  }
+					add_to_open(node, weight)
+				}
+			}
+		}
+	}
 
-  // start and end have to be arrays of objects with 3d-coordinates
-  function search_route(start, end)
-  {
-    prepare_search()
-    foreach (e in end) {
-      targets.append(e);
-    }
-    compute_bounding_box()
+	// start and end have to be arrays of objects with 3d-coordinates
+	function search_route(start, end)
+	{
+		prepare_search()
+		foreach (e in end) {
+			targets.append(e);
+		}
+		compute_bounding_box()
+		foreach (s in start)
+		{
+			local dist = estimate_distance(s)
+      			add_to_open(ab_node(s, null, 1, dist+1, 0, 0), dist+1)
+		}
 
-    foreach (s in start)
-    {
-      local dist = estimate_distance(s)
-      add_to_open(ab_node(s, null, 1, dist+1, 0, 0), dist+1)
-    }
-
-    search()
-
-    if (route.len() > 0) {
-      return { start = route[route.len()-1], end = route[0], routes = route }
-    }
-    print("No route found")
-    return { err =  "No route" }
-  }
+		search()
+		if (route.len() > 0) {
+			return { start = route[route.len()-1], end = route[0], routes = route }
+		}
+		print("No route found")
+		return { err =  "No route" }
+	}
 }
 
 class ab_node extends ::astar_node
 {
-  dir = 0   // direction to reach this node
-  flag = 0  // flag internal to the route searcher
-  constructor(c, p, co, d, di, fl=0)
-  {
-    base.constructor(c, p, co, d)
-    dir  = di
-    flag = fl
-  }
+	dir = 0   // direction to reach this node
+	flag = 0  // flag internal to the route searcher
+	constructor(c, p, co, d, di, fl=0)
+	{
+		base.constructor(c, p, co, d)
+		dir  = di
+		flag = fl
+	}
 }
 
 /**
@@ -302,66 +315,67 @@ class ab_node extends ::astar_node
  */
 class pontifex
 {
-  player = null
-  bridge = null
+	player = null
+	bridge = null
 
-  constructor(pl, way)
-  {
-    // print messages box
-    // 1 = erreg
-    // 2 = list bridges
-    local print_message_box = 0
-    local wt_name = ["", "road", "rail", "water"]
+	constructor(pl, way)
+	{
+		// print messages box
+		// 1 = erreg
+		// 2 = list bridges
+		local print_message_box = 0
+		local wt_name = ["", "road", "rail", "water"]
 
-    if ( print_message_box > 1 ) {
-      gui.add_message_at(pl, "____________ Search bridge ___________", world.get_time())
-    }
-    player = pl
-    local list = bridge_desc_x.get_available_bridges(way.get_waytype())
-    local len = list.len()
-    local way_speed = way.get_topspeed()
-    local bridge_min_len = 5
+		if ( print_message_box > 1 ) {
+			gui.add_message_at(pl, "____________ Search bridge ___________", world.get_time())
+		}
+		player = pl
+		local list = bridge_desc_x.get_available_bridges(way.get_waytype())
+		local len = list.len()
+		local way_speed = way.get_topspeed()
+		local bridge_min_len = 5
 
-    if (len>0) {
-      bridge = list[0]
-        if ( print_message_box == 2 ) {
-          gui.add_message_at(pl, " ***** way : " + wt_name[way.get_waytype()], world.get_time())
-          gui.add_message_at(pl, " ***** bridge : " + bridge.get_name(), world.get_time())
-          gui.add_message_at(pl, " ***** get_max_length : " + bridge.get_max_length(), world.get_time())
-        }
+		if (len>0) {
+			bridge = list[0]
+				if ( print_message_box == 2 ) {
+					gui.add_message_at(pl, " ***** way : " + wt_name[way.get_waytype()], world.get_time())
+					gui.add_message_at(pl, " ***** bridge : " + bridge.get_name(), world.get_time())
+					gui.add_message_at(pl, " ***** get_max_length : " + bridge.get_max_length(), world.get_time())
+				}
 
-      for(local i=1; i<len; i++) {
-        local b = list[i]
-        if ( print_message_box == 2 ) {
-          gui.add_message_at(pl, " ***** way : " + wt_name[way.get_waytype()], world.get_time())
-          gui.add_message_at(pl, " ***** bridge : " + b.get_name(), world.get_time())
-          gui.add_message_at(pl, " ***** get_max_length : " + b.get_max_length(), world.get_time())
-        }
-        if ( b.get_max_length() > bridge_min_len || b.get_max_length() == 0 ) {
-          if (bridge.get_topspeed() < way_speed) {
-            if (b.get_topspeed() > bridge.get_topspeed()) {
-              bridge = b
-            }
-          }
-          else {
-            if (way_speed < b.get_topspeed() && b.get_topspeed() < bridge.get_topspeed()) {
-              bridge = b
-            }
-          }
-        }
-      }
-    }
-    if ( print_message_box > 1 ) {
-      gui.add_message_at(pl, " *** bridge found : " + bridge.get_name() + " way : " + wt_name[way.get_waytype()], world.get_time())
-      gui.add_message_at(our_player, "--------- Search bridge end ----------", world.get_time())
-    }
-  }
+			for(local i=1; i<len; i++) {
+				local b = list[i]
+				if ( print_message_box == 2 ) {
+					gui.add_message_at(pl, " ***** way : " + wt_name[way.get_waytype()], world.get_time())
+					gui.add_message_at(pl, " ***** bridge : " + b.get_name(), world.get_time())
+					gui.add_message_at(pl, " ***** get_max_length : " + b.get_max_length(), world.get_time())
+				}
+				if ( b.get_max_length() > bridge_min_len || b.get_max_length() == 0 ) {
+					if (bridge.get_topspeed() < way_speed) {
+						if (b.get_topspeed() > bridge.get_topspeed()) {
+							bridge = b
+						}
+					}
+					else {
+						if (way_speed < b.get_topspeed() && b.get_topspeed() < bridge.get_topspeed()) {
+							bridge = b
+						}
+					}
+				}
+			}
+		}
+		if ( print_message_box > 1 ) {
+			gui.add_message_at(pl, " *** bridge found : " + bridge.get_name() + " way : " + wt_name[way.get_waytype()], world.get_time())
+			gui.add_message_at(our_player, "--------- Search bridge end ----------", world.get_time())
+		}
+	}
 
-  function find_end(pos, dir, min_length)
-  {
-    return bridge_planner_x.find_end(player, pos, dir, bridge, min_length)
-  }
+	function find_end(pos, dir, min_length)
+	{
+		return bridge_planner_x.find_end(player, pos, dir, bridge, min_length)
+	}
 }
+
 
 /**
  * Class to search a route and to build a connection (i.e. roads).
@@ -369,81 +383,273 @@ class pontifex
  */
 class astar_builder extends astar
 {
-  builder = null
-  bridger = null
-  way     = null
+	builder = null
+	bridger = null
+	way     = null
+	prohibit_area = []  /* 経路探索対象外座標のタイルリスト */
+	rail_OK_area = []   /* 線路敷設時、基本的に既存線路タイルは探索外。例外的に探索可能な線路タイルを定義 */
 
-  function process_node(cnode)
-  {
-    local from = tile_x(cnode.x, cnode.y, cnode.z)
-    local back = dir.backward(cnode.dir)
+	function process_node(cnode)
+	{
+		local from = tile_x(cnode.x, cnode.y, cnode.z)
+		local back = dir.backward(cnode.dir)
+		// 探索開始直後のcnodeはdirにゴールまでの距離を格納している
+		if(cnode.dir > dir.all){ back = dir.none }
+		
+		local neo_heap_flg = false
 
-    for(local d = 1; d<16; d*=2) {
-      // do not go backwards
-      if (d == back) {
-        continue
-      }
-      // continue straight after a bridge
-      if (cnode.flag == 1  &&  d != cnode.dir) {
-        continue
-      }
+		for(local d = 1; d<16; d*=2) {
 
-      local to = from.get_neighbour(wt_all, d)
-      if (to) {
-        if (builder.is_allowed_step(from, to)  &&  !is_closed(to)) {
-          // estimate moving cost
-          local move = cnode.is_straight_move(d)  ?  cost_straight  :  cost_curve
-          local dist   = estimate_distance(to)
-          // is there already a road?
-          if (!to.has_way(wt_road)) {
-            move += 8
-          }
+			// do not go backwards
+			if (d == back) {
+				continue
+			}
+			// continue straight after a bridge
+			if ((cnode.flag == 1 || cnode.flag == 12) &&  d != cnode.dir) {
+				continue
+			}
+			local to = from.get_neighbour(wt_all, d)
+			
+			// 隣接タイルが取得できなかったら、対象タイル・隣接タイルが陸上なら処理続行
+			if (!to)
+			{
+				if(from.is_empty())
+				{
+					to = finder.coord2D_to_tile(finder.move_coord(from, d))
+					if(to != null && !(to.is_empty())){ to = null }
+				}
+			}
+			if (to) {
+				if(is_member(to, prohibit_area)){ continue }
+				if (is_closed(to)) { continue }
+				// continue straight after terraforming
+				if(cnode.flag == 2 && d != cnode.dir && (to.z - from.z == 1 || (cnode.previous && cnode.previous.z - from.z == 1)))
+				{
+					continue
+				}
+				
+				// estimate moving cost
+				local move = cnode.is_straight_move(d)  ?  cost_straight  :  cost_curve
+				local dist   = estimate_distance(to)
+				// 線路の場合、90度カーブを回避
+				if(way != null && way.get_waytype() == wt_rail)
+				{
+					if(d == cnode.dir && cnode.previous && d != cnode.previous.dir && cnode.previous.previous && cnode.previous.dir == cnode.previous.previous.dir)
+					{
+						continue
+					}
+					// ゴール直前の90度カーブを回避(スタート直後の90度カーブ回避の条件は煩雑なので設定しない)
+					if(d != cnode.dir && cnode.previous && cnode.previous.dir == cnode.dir && cnode.dist <= 10)
+					{
+						local same_pos_nodes = filter(nodes, @(a) compare_coord(a, cnode.previous) && a.dir != cnode.previous.dir)
+						if(same_pos_nodes.len() == 0)
+						{
+							continue
+						}else{
+							cnode.previous = same_pos_nodes[0]
+						}
+					}
+					/*// 斜めの線路は真っ直ぐ扱い
+					if(d != cnode.dir && cnode.previous && d == cnode.previous.dir && cnode.previous.previous && cnode.dir == cnode.previous.previous.dir)
+					{
+						move = cost_straight
+					}*/
+					// 線路で180度カーブは使ってほしくないので回避
+					if(d != cnode.dir && cnode.previous && d == dir.backward(cnode.previous.dir))
+					{
+						continue
+					}
+					// 直線->カーブに変わる地点でコスト追加(線路をグネグネさせたくないため)
+					if(d != cnode.dir && cnode.previous && cnode.dir == cnode.previous.dir)
+					{
+						move += cost_curve * 2
+					}
+					// ゴール近傍じゃない地点で整地が必要ならコスト追加
+					if(!(check_slope_dir(to.get_slope(), d)) && dist > 5)
+					{
+						move += cost_curve * 2
+					}
+				}
+				local ground_on_flg = false
+				// is there already way?
+				if (way != null) {
+					switch (way.get_waytype())
+					{
+						case wt_road:
+						if (to.has_way(wt_road)) {
+							ground_on_flg = true
+						}else{
+							move += 8
+						}
+						break
+						
+						case wt_rail:
+						if (to.has_way(wt_rail)) {
+							if(is_member(to, rail_OK_area)) {
+								ground_on_flg = true
+							}
+						}
+						break
+					}
+				}
 
-          local cost   = cnode.cost + move
-          local weight = cost + dist
-          local node = ab_node(to, cnode, cost, dist, d)
+				// from->to方向でtoのタイルが地形いじる必要ないならflat_field_fig=0、それ以外2、橋梁開始位置は-1
+				local flat_field_flg = -1
+				if (builder.is_allowed_step(from, to))
+				{
+					flat_field_flg = 0
+					// 段差があるのにこっちくるケース
+					if(way != null && !(to.has_way(way.get_waytype())))
+					{
+						if(abs(from.z - to.z) == 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ flat_field_flg = 2 }
+						if(way != null && way.get_waytype() == wt_rail && abs(from.z - to.z) > 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ continue }
+						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
+						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
+						// 線路敷設時、段差2のスロープの時、flat_field_flg=2にする
+						if(way != null && way.get_waytype() == wt_rail && check_double_slope(to))
+						{
+							if(from.z == to.z)
+							{
+								if(check_slope_dir(to.get_slope(), d))
+								{
+									flat_field_flg = 3
+									// TODO : flat_field_flg = 3はトンネルにしたい(とりまスキップ)
+									continue
+								}else{
+									flat_field_flg = 2
+								}
+							}
+							if(from.z - to.z > 1)
+							{
+								if(to.get_slope() == dir.backward(d))
+								{
+									flat_field_flg = -1
+								}
+							}
+						}
+					}
+					// 既存線路タイルは敷設終点以外はオーバーパスさせる
+					if(to.has_way(wt_rail) && !(is_member(to, rail_OK_area)))
+					{
+						if(from.has_way(wt_rail)){ continue }
+						flat_field_flg = -1
+					}
+				}else{
+					
+					if(to.is_empty() || ground_on_flg)
+					{
+						if(check_slope_dir(to.get_slope(), d))
+						{
+							if(abs(from.z - to.z) <= 1){ flat_field_flg = 2 }
+						}else{
+							// 始点と終点が共に平坦でない場合、始点のflat_field_flgが
+							// 2でないなら終点のノードを開かない
+							if(!(check_slope_dir(from.get_slope(), d)) && cnode.flag != 2){ continue }
+							if(abs(from.z - to.z) <= 1){ flat_field_flg = 2 }
+						}
+					}
+				}
 
-          add_to_open(node, weight)
-        }
-        // try bridges
-        else if (bridger  &&  d == cnode.dir  &&  cnode.flag != 1) {
-          local len = 1
-          local max_len = bridger.bridge.get_max_length()
+				if(flat_field_flg >= 0)
+				{
+//					if(flat_field_flg == 2){ move += cost_curve * 2 }
+					local cost   = cnode.cost + move
+					local weight = cost + dist
+					local node = ab_node(to, cnode, cost, dist, d, flat_field_flg)
+//if(way != null && way.get_waytype() == wt_rail && dist < 70){
+//gui.add_message_at(our_player,"["+cnode.x+","+cnode.y+","+cnode.z+"]->["+coord_to_string(to)+"],cost:"+cost+",move:"+move+",dist:"+dist+",cdir:"+cnode.dir+",cflag:"+cnode.flag+",flag:"+flat_field_flg,to)
+//}
+					add_to_open(node, weight)
+					continue
+				}
+			}
 
-          do {
-            local to = bridger.find_end(from, d, len)
-            if (to.x < 0  ||  is_closed(to)) {
-              break
-            }
-            local bridge_len = abs(from.x-to.x) + abs(from.y-to.y)
+			// try bridges
+			if (bridger  &&  (d == cnode.dir || cnode.dir > dir.all)  &&  cnode.flag != 1) {
+				local len = 1
+				// 最大架橋長さが未設定の橋アドオンは強制的に最大架橋長さを設定
+				local max_len = set_max_bridge_len(bridger.bridge)
+				do {
+					// find_endは最小長さを与えると最小長さ～の有効な架橋終点タイルを返す
+					// ->len=1で川幅2だと橋長さ3の位置になるタイルを返す
+					local to = bridger.find_end(from, d, len)
+					// 線路敷設時、線路より高規格な道路をオーバーパスする時や
+					// 船舶が航行可能な川をheight=8でオーバーパスする時、
+					// to.xが負数になるので対処
+					local blnTwelve = false
+					if(to.x < 0)
+					{
+						to = finder.coord2D_to_tile(finder.move_coord(from, d, len))
+						if(!to)
+						{
+							len++
+							continue
+						}
+						if(to.is_empty() && from.z == to.z && (from.get_slope() != slope.flat || to.get_slope() != slope.flat))
+						{
+							blnTwelve = true
+						}else{
+							len++
+							continue
+						}
+					}
+					if (to.x < 0  ||  is_closed(to)) {
+						len++
+						continue
+					}
 
-            // long bridges bad
-            local bridge_factor = 3
+					local bridge_len = abs(from.x-to.x) + abs(from.y-to.y)
+					// 架橋長さが最大架橋長さを超過するなら架橋しない
+					if(bridge_len > max_len){ break }
+					local under_pass_area = finder.get_interpolate_tile(from, to)
+					under_pass_area = filter(under_pass_area, @(a) !(compare_coord(a, from)) && !(compare_coord(a, to)))
+					// 建物の上は架橋しない(駅、バス停除く)
+					local bldg_tile = filter(under_pass_area, @(a) a.get_halt() == null || (a.get_halt() && !(a.has_ways())))
+					bldg_tile = filter(bldg_tile, @(a) a.find_object(mo_building) != null)
+					if(bldg_tile.len() != 0){ break }
+					// オーバーパスする線路がある時、複線化用地を確保してあげる
+					local under_pass_rail_flg = check_under_pass_single_rail(under_pass_area, d)
+					if(bridge_len < 4 && under_pass_rail_flg > 0)
+					{
+						if(under_pass_rail_flg == 1){ len = 3 }
+						if(under_pass_rail_flg == 2){ len = 5 }
+						to = bridger.find_end(from, d, len)
+						if (to.x < 0  ||  is_closed(to)) {
+							len++
+							continue
+						}
+						bridge_len = abs(from.x-to.x) + abs(from.y-to.y)
+					}
 
-            if ( bridge_len > 20 ) {
-              bridge_factor = 4
-            }/* else if ( bridge_len > 8 ) {
-              bridge_factor = 4
-            }*/
-            local move = bridge_len * cost_straight  * bridge_factor  /*extra bridge penalty */;
-            // set distance to 1 if at a target tile
-            local dist = max(estimate_distance(to), 1)
+					local move = bridge_len * cost_straight  * 3  /*extra bridge penalty */
+					// set distance to 1 if at a target tile
+					local dist = max(estimate_distance(to), 1)
+					// 方向と橋梁終点地点の道の方向が同じならdistance=0もOKとする
+					local temp_to = finder.coord2D_to_tile(to)
+					if(way != null && temp_to.has_way(way.get_waytype()) && temp_to.get_way_dirs(way.get_waytype()) == d)
+					{
+						dist = estimate_distance(to)
+					}
 
-            local cost   = cnode.cost + move
-            local weight = cost + dist
-            local node = ab_node(to, cnode, cost, dist, d, 1 /*bridge*/)
+					local cost   = cnode.cost + move
+					local weight = cost + dist
+					local node = null
+					if(blnTwelve)
+					{
+						node = ab_node(to, cnode, cost, dist, d, 12 /*terraform and bridge*/)
+					}else{
+						node = ab_node(to, cnode, cost, dist, d, 1 /*bridge*/)
+					}
 
-            add_to_open(node, weight)
+					add_to_open(node, weight)
+					len = bridge_len + 1
+				} while (len <= max_len)
+			}
+		}
+	}
 
-            len = bridge_len + 1
-          } while (len <= max_len)
-        }
-      }
-    }
-  }
-
-  function search_route(start, end, build_route = 1)
-  {
+  function search_route(start, end)
+	{
 
     if ( start.len() == 0 || end.len() == 0 ) {
       if ( print_message_box > 0 ) {
@@ -452,237 +658,407 @@ class astar_builder extends astar
       return { err =  "No route" }
     }
 
-    prepare_search()
-    foreach (e in end) {
-      targets.append(e);
-    }
-    compute_bounding_box()
+		prepare_search()
+		foreach (e in end) {
+			targets.append(e);
+		}
+		compute_bounding_box()
 
-    foreach (s in start)
-    {
-      local dist = estimate_distance(s)
-      add_to_open(ab_node(s, null, 1, dist+1, 0, 0), dist+1)
-    }
+		foreach (s in start)
+		{
+			local dist = estimate_distance(s)
+			add_to_open(ab_node(s, null, 1, dist+1, dist, 0), dist+1)
+		}
 
-    search()
+		search()
 
-    local bridge_tiles = 0
-    local count_tree = 0
+		if (route.len() > 0) {
+			remove_field( route[0] )
 
-    if (route.len() > 0) {
-      remove_field( route[0] )
+			// do not try to build in tunnels
+			local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
+			local is_tunnel_1 = is_tunnel_0
 
-      // do not try to build in tunnels
-      local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
-      local is_tunnel_1 = is_tunnel_0
+/*if(way != null && way.get_waytype() == wt_rail){
+for (local i = 1; i<route.len(); i++) {
+  local aaa=tile_x(route[i].x, route[i].y, route[i].z)
+  gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
+}}*/
+			for (local i = 1; i<route.len(); i++) {
+				// remove any fields on our routes (only start & end currently)
 
-      local last_treeway_tile = null
+				remove_field( route[i] )
 
-      for (local i = 1; i<route.len(); i++) {
-        // remove any fields on our routes (only start & end currently)
-        remove_field( route[i] )
+				// check for tunnel
+				is_tunnel_0 = is_tunnel_1
+				is_tunnel_1 = tile_x(route[i].x, route[i].y, route[i].z).find_object(mo_tunnel)
 
-        // check for tunnel
-        is_tunnel_0 = is_tunnel_1
-        is_tunnel_1 = tile_x(route[i].x, route[i].y, route[i].z).find_object(mo_tunnel)
+				if (is_tunnel_0 && is_tunnel_1) {
+					continue
+				}
 
-        if (is_tunnel_0 && is_tunnel_1) {
-          continue
-        }
+				local err
+				// build
+				if (route[i-1].flag == 0 || route[i-1].flag == 2) {
+					// 敷設前に整地が必要
+					if(route[i].flag == 2)
+					{
+						local tile_list = [tile_x(route[i].x, route[i].y, route[i].z)]
+						if(i < route.len() - 1)
+						{
+							local jj = i + 1
+							while(route[jj].flag == 2 && jj < route.len()-1)
+							{
+								tile_list.append(tile_x(route[jj].x, route[jj].y, route[jj].z))
+								jj++
+							}
 
-        local err
-        // build
-        if (route[i-1].flag == 0) {
-          /*if ( way.get_waytype() == wt_road ) {
-            if ( build_route == 1 ) {
-              err = command_x.build_road(our_player, route[i-1], route[i], way, true, true)
-              if (err) {
-                //gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
-                remove_wayline(route, (i - 1), way.get_waytype())
-              }
+							smoose_tile_edge(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_list, tile_x(route[jj].x, route[jj].y, route[jj].z))
+							// 整地に伴い高さを更新
+							for(local kk = i; kk < jj; kk++)
+							{
+								route[kk].z = finder.coord2D_to_tile(coord(route[kk].x, route[kk].y)).z
+								route[kk].flag = 0
+							}
+						}
+					}
+					
+					if ( way.get_waytype() == wt_road ) {
+						err = command_x.build_road(our_player, route[i-1], route[i], way, true, true)
+						if (err) { err = command_x.build_road(our_player, route[i-1], route[i], way, false, true) }
+						// ver124から他社のhaltやpierを持つタイルを建設の始終点にするとエラーになるので
+						if (err)
+						{
+							// 既に道路があるならスキップ
+							if(tile_x(route[i-1].x, route[i-1].y, route[i-1].z).has_way(wt_road))
+							{
+								if(tile_x(route[i].x, route[i].y, route[i].z).has_way(wt_road)){ continue }
+							}
+							// 始終点の位置をずらす
+							local jj = i + 1
+							while(err && jj < route.len())
+							{
+								err = command_x.build_road(our_player, route[i-1], route[jj], way, true, true)
+								jj++
+							}
+						}
+						if (err) {
+							gui.add_message_at(our_player, "aaaFailed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+							remove_wayline(route, (i - 1), way.get_waytype())
+						}
 
-            }
-
-          } else {*/
-            if ( build_route == 1 ) {
-              // test way is available
-              if ( !way.is_available(world.get_time()) ) {
-                way = find_object("way", way.get_waytype(), way.get_topspeed())
-              }
-
-              local t = tile_x(route[i].x, route[i].y, route[i].z)
-              local d = t.get_way_dirs(way.get_waytype())
-              local test_exists_way = t.find_object(mo_way)
-
-              local check_build_tile = true
-              if ( i > 1 && i < (route.len()-1) ) {
-                local tx_0 = tile_x(route[i-1].x, route[i-1].y, route[i-1].z)
-                local tx_1 = tile_x(route[i+1].x, route[i+1].y, route[i+1].z)
-                if ( tx_0.find_object(mo_way) != null && tx_1.find_object(mo_way) != null ) {
-                  //gui.add_message_at(our_player, " check tx_0 and tx_1 ", t)
-                  if ( test_exists_way == null ) {
-                    local ty = route[i]
-                    local cnv_count = tx_0.find_object(mo_way).get_convoys_passed()[0] + tx_0.find_object(mo_way).get_convoys_passed()[1]
-
-                    if ( last_treeway_tile != null && cnv_count == 0 ) {
-                      ty = route[last_treeway_tile]
-                    }
-                    err = test_select_way(tx_1, tx_0, ty, way.get_waytype())
-                    //gui.add_message_at(our_player, " check tx_0 and tx_1 : test_select_way " + err, t)
-                    if ( err ) {
-                      check_build_tile = false
-                    }
-                    err = null
-                  }
-                } else if ( test_exists_way != null && test_exists_way.get_waytype() == way.get_waytype() ) {
-                  check_build_tile = false
-                }
-                if ( tx_0.find_object(mo_signal) != null ) {
-                  check_build_tile = false
-
-                }
-              }
-
-              if ( test_exists_way != null && test_exists_way.get_owner() != our_player.nr ) { //&& last_treeway_tile != null
-                //gui.add_message_at(our_player, "test_exists_way " + test_exists_way + " last_treeway_tile " + last_treeway_tile + " test_exists_way.get_waytype() " + test_exists_way.get_waytype() + " !t.is_bridge() " + !t.is_bridge() + " t.get_slope() " + t.get_slope(), t)
-
-                  test_exists_way = null
-
-
-              }
-
-              if ( t.is_bridge() ) {
-                //gui.add_message_at(our_player, " t.is_bridge() " + t.is_bridge(), t)
-                last_treeway_tile = null
-              }
-
-              if ( i > 2 && test_exists_way != null && last_treeway_tile != null && test_exists_way.get_waytype() == wt_rail && t.get_slope() == 0 ) {
-                //gui.add_message_at(our_player, " (624) ", t)
-                err = test_select_way(route[i], route[last_treeway_tile], route[i-1], way.get_waytype())
-                if ( err ) {
-                  last_treeway_tile = null
-                } else {
-                  test_exists_way = null
-                  last_treeway_tile = null
-                }
-                err = null
-              }
-              /*if ( way.get_waytype() == wt_rail && !t.is_bridge() && t.get_slope == 0 ) {
-                t = tile_x(route[i-1].x, route[i-1].y, route[i-1].z)
-                d = t.get_way_dirs(way.get_waytype())
-                if ( dir.is_threeway(d) ) {
-                  last_treeway_tile = i - 1
-                } else {
-                  last_treeway_tile = null
-                  test_exists_way = null
-                }
-
-              }*/
-              if ( test_exists_way != null && ( i < 2 || test_exists_way.get_waytype() == wt_road ) ) {
-                test_exists_way = null
-              }
-
-              local build_tile = false
-              if ( settings.get_pay_for_total_distance_mode == 2 && test_exists_way == null && check_build_tile ) {
-                err = command_x.build_way(our_player, route[i-1], route[i], way, true)
-                build_tile = true
-              } else if ( test_exists_way == null && check_build_tile ) {
-                err = command_x.build_way(our_player, route[i-1], route[i], way, false)
-                build_tile = true
-              }
-              if (err) {
-                //gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
-                // remove way
-                // route[0] to route[i]
-                //err = command_x.remove_way(our_player, route[0], route[i])
-                remove_wayline(route, (i - 1), way.get_waytype())
-              } else {
-                t = tile_x(route[i-1].x, route[i-1].y, route[i-1].z)
-                d = t.get_way_dirs(way.get_waytype())
-                //gui.add_message_at(our_player, " (666) dir.is_threeway(d) " + dir.is_threeway(d), t)
-                if ( dir.is_threeway(d) && way.get_waytype() == wt_rail && build_tile ) {
-                  last_treeway_tile = i - 1
-                }
-              }
-            } else if ( build_route == 0 ) {
-              if ( tile_x(route[i].x, route[i].y, route[i].z).find_object(mo_tree) != null ) {
-                count_tree++
-              }
-            }
-          //}
-        }
-        else if (route[i-1].flag == 1) {
-          // plan build bridge
-
-          local b_tiles = 0
-
-          //
-            if ( route[i-1].x == route[i].x ) {
-              if ( route[i-1].y > route[i].y ) {
-                b_tiles = (route[i-1].y - route[i].y + 1)
-                bridge_tiles += b_tiles
-              } else {
-                b_tiles = (route[i].y - route[i-1].y + 1)
-                bridge_tiles += b_tiles
-              }
-            } else if ( route[i-1].y == route[i].y ) {
-              if ( route[i-1].x > route[i].x ) {
-                b_tiles = (route[i-1].x - route[i].x + 1)
-                bridge_tiles += b_tiles
-              } else {
-                b_tiles = (route[i].x - route[i-1].x + 1)
-                bridge_tiles += b_tiles
-              }
-            }
-
-
-          if ( build_route == 1 ) {
-            // check ground under bridge
-            // check_ground() return true build bridge
-            // check_ground() return false no build bridge
-
-            local build_bridge = true
-            // check whether the ground can be adjusted and no bridge is necessary
-            // bridge len <= 4 tiles
-            if ( b_tiles < 8 ) {
-              build_bridge = check_ground(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_x(route[i].x, route[i].y, route[i].z), way)
-              //gui.add_message_at(our_player, "check_ground(pos_s, pos_e) --- " + build_bridge, route[i-1])
-            }
-
-            if ( build_bridge ) {
-              err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
-              if (err) {
-                // check whether bridge exists
-                sleep()
-                local arf = astar_route_finder(wt_road)
-                local res_bridge = arf.search_route([route[i-1]], [route[i]])
-
-                if ("routes" in res_bridge  &&  res_bridge.routes.len() == abs(route[i-1].x-route[i].x)+abs(route[i-1].y-route[i].y)+1) {
-                  // there is a bridge, continue
-                  err = null
-                  gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
-                } else {
-                  remove_wayline(route, (i - 1), way.get_waytype())
-                  // remove bridge tiles build by not build bridge
-
-                }
-              }
-            }
-
-          } else if ( build_route == 0 ) {
-          }
-
-        }
-        if (err) {
-          return { err =  err }
-        }
-      }
-      return { start = route.top(), end = route[0], routes = route, bridge_lens = bridge_tiles, bridge_obj = bridger.bridge, tiles_tree = count_tree }
-    }
-    print("No route found")
-    return { err =  "No route" }
-  }
+					} else {
+						// 車庫がある場合、撤去
+						local tile = tile_x(route[i].x, route[i].y, route[i].z)
+						if(tile.find_object(mo_depot_rail) != null)
+						{
+							local tool = command_x(tool_remover)
+							tool.work(our_player, tile)
+						}
+						
+						if ( settings.get_pay_for_total_distance_mode == 2 ) {
+							err = command_x.build_way(our_player, route[i-1], route[i], way, true)
+						} else {
+							err = command_x.build_way(our_player, route[i-1], route[i], way, false)
+						}
+						// ver124から他社のhaltやpierを持つタイルを建設の始終点にするとエラーになるので
+						if (err)
+						{
+							// 既に線路があるならスキップ
+							if(tile_x(route[i-1].x, route[i-1].y, route[i-1].z).has_way(wt_rail))
+							{
+								if(tile_x(route[i].x, route[i].y, route[i].z).has_way(wt_rail)){ continue }
+							}
+							// 始終点の位置をずらす
+							local jj = i + 1
+							while(err && jj < route.len())
+							{
+								err = err = command_x.build_way(our_player, route[i-1], route[jj], way, true)
+								jj++
+							}
+						}
+						if (err) {
+							gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord3d_to_string(route[i-1]) + " to " + coord3d_to_string(route[i]) +"\n" + err, route[i])
+							// remove way
+							// route[0] to route[i]
+							//err = command_x.remove_way(our_player, route[0], route[i])
+							remove_wayline(route, (i - 1), way.get_waytype())
+						}
+					}
+				}
+				else if (route[i-1].flag == 1) {
+					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
+					if (err) {
+						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+						remove_wayline(route, (i - 1), way.get_waytype())
+					}
+				}
+				else if (route[i-1].flag == 12) {
+					// 川岸を1マス高くして架橋
+					local target = [tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_x(route[i].x, route[i].y, route[i].z)]
+					target = filter(target, @(a) a.get_slope() != slope.flat)
+					finder.align_height(target, route[i].z + 1, our_player, false)
+					finder.flat_tiles(target, our_player)
+					// 整地に伴い高さを更新
+					route[i-1].z = finder.coord2D_to_tile(coord(route[i-1].x, route[i-1].y)).z
+					route[i].z = finder.coord2D_to_tile(coord(route[i].x, route[i].y)).z
+					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
+					if (err) {
+						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+						remove_wayline(route, (i - 1), way.get_waytype())
+					}
+				}
+				if (err) {
+					return { err =  err }
+				}
+			}
+			return { start = route[route.len()-1], end = route[0], routes = route }
+		}
+		print("No route found")
+		return { err =  "No route" }
+	}
 }
+
+/***************************************
+ * 架橋可能長さが無限の場合、興ざめするので架橋可能長さを制限
+ * 引数：橋の情報(bridge_desc_x)
+ * 戻り値：最大架橋長さ
+ ***************************************/
+function set_max_bridge_len(bridge_info)
+{
+	local rtn = bridge_info.get_max_length()
+	if(rtn != 0){ return rtn }
+	// 架橋可能長さを以下のように設定
+	local year = world.get_time().year
+	if(year <= 1960)
+	{
+		rtn = 7
+	}else{
+		rtn = 22
+	}
+	if(1960 < year && year < 1975)
+	{
+		rtn = 7 + year - 1960
+	}
+	return rtn
+}
+
+/***************************************
+ * 橋が単線の線路をアンダーパスしているかチェック
+ * 引数：橋梁がアンダーパスするタイルリスト(tile_xのリスト)、橋の向き(dir)
+ * 戻り値：0(単線をアンダーパスしてない)、1(単線と直交)、2(単線と斜めにアンダーパス)
+ ***************************************/
+function check_under_pass_single_rail(under_pass_area, bridge_dir)
+{
+	local rtn = 0
+	local left_counter = 0
+	local right_counter = 0
+	local idx = []
+	foreach(tile in _step_generator(under_pass_area))
+	{
+		if(tile.has_way(wt_rail))
+		{
+			local d = tile.get_way_dirs(wt_rail)
+			// 橋がアンダーパスした左右の線路の数で単線線路を横断したか判定
+			switch(bridge_dir)
+			{
+				case dir.north:
+				if(d > 7){ left_counter++ }
+				if(is_member(d, [2, 3, 6, 7, 10, 11, 14])){ right_counter++ }
+				idx.append(0)
+				break
+				case dir.east:
+				if(d % 2 == 1){ left_counter++ }
+				if(is_member(d, [4, 5, 6, 7, 12, 13, 14])){ right_counter++ }
+				idx.append(0)
+				break
+				case dir.south:
+				if(d > 7){ right_counter++ }
+				if(is_member(d, [2, 3, 6, 7, 10, 11, 14])){ left_counter++ }
+				idx.append(0)
+				break
+				case dir.west:
+				if(is_member(d, [4, 5, 6, 7, 12, 13, 14])){ left_counter++ }
+				if(d % 2 == 1){ right_counter++ }
+				idx.append(0)
+				break
+			}
+		}
+	}
+	if(left_counter == 1 && right_counter == 1)
+	{
+		if(idx.len() == 1){ rtn = 1 }
+		if(idx.len() == 2){ rtn = 2 }
+	}
+	return rtn
+}
+
+/***************************************
+ * ダブルスロープかチェック
+ * 引数：チェック対象座標(tile_x)
+ * 戻り値：チェック結果
+ * 備考：現状、シングルスロープとダブルスロープのenum値は同一なので
+ * 　　　wayが敷設できるか、のチェックにしかなってない
+ ***************************************/
+function check_double_slope(target)
+{
+	// tile.get_slope()で取得したスロープは下り方向の方角を持つ. slope.to_dir()で取得した方向はスロープ登り方向を返す
+	local t_slope = target.get_slope()
+	local d = slope.to_dir(t_slope)
+	if(!(dir.is_single(d))){ return false }
+
+	if(t_slope != dir.to_slope(d))
+	{
+		return true
+	}else{
+		return false
+	}
+}
+
+/***************************************
+ * 凹凸地を整地したり、段差にスロープを設ける
+ * 引数：整地開始直前の座標(tile_x)、flag=2のタイルリスト(tile_xのリスト)、整地終了の隣の座標(tile_x)
+ * 備考：第二引数は経路探索した経路が順番に格納されていること
+ ***************************************/
+function smoose_tile_edge(from, tile_list, end)
+{
+// tile.get_slope()で取得したスロープは下り方向の方角を持つ slope.to_dir()で取得した方向はスロープ登り方向を返す
+	local f_slope = from.get_slope()
+	local e_slope = end.get_slope()
+	// スロープ設置可能タイル取得
+	local tbl_slope_OK_tile_list = []
+	for(local ii=0; ii < tile_list.len(); ii++)
+	{
+		local former_dir = null
+		local next_dir = null
+		if(ii == 0)
+		{
+			if(tile_list.len() > 1)
+			{
+				former_dir = coord(tile_list[ii].x - from.x, tile_list[ii].y - from.y).to_dir()
+				next_dir = coord(tile_list[ii+1].x - tile_list[ii].x, tile_list[ii+1].y - tile_list[ii].y).to_dir()
+			}else{
+				former_dir = coord(tile_list[ii].x - from.x, tile_list[ii].y - from.y).to_dir()
+				next_dir = coord(end.x - tile_list[ii].x, end.y - tile_list[ii].y).to_dir()
+			}
+		}
+		if(ii > 0 && ii == tile_list.len() - 1)
+		{
+			former_dir = coord(tile_list[ii].x - tile_list[ii-1].x, tile_list[ii].y - tile_list[ii-1].y).to_dir()
+			next_dir = coord(end.x - tile_list[ii].x, end.y - tile_list[ii].y).to_dir()
+		}
+		if(ii > 0 && ii < tile_list.len() - 1){
+			former_dir = coord(tile_list[ii].x - tile_list[ii-1].x, tile_list[ii].y - tile_list[ii-1].y).to_dir()
+			next_dir = coord(tile_list[ii+1].x - tile_list[ii].x, tile_list[ii+1].y - tile_list[ii].y).to_dir()
+		}
+		if(former_dir == next_dir)
+		{
+			local distance = abs(tile_list[ii].x - from.x)+abs(tile_list[ii].y - from.y)
+			local tbl_slope_OK_tile = { tile = tile_list[ii], distance = distance }
+			tbl_slope_OK_tile_list.append(tbl_slope_OK_tile)
+		}
+	}
+	
+	local need_height = abs(from.z - end.z)
+	// 整地終了の隣の座標が下り坂になるパターン
+	local temp_pos = finder.move_coord(end, slope.to_dir(e_slope))
+	if(e_slope != slope.flat && temp_pos != null && compare_coord(tile_list.top(), temp_pos))
+	{
+		if(from.z - end.z > 0)
+		{
+			need_height--
+			// ダブルスロープの場合
+//			if(check_double_slope(end))
+//			{
+//				need_height--
+//			}
+		}else{
+			need_height++
+			// ダブルスロープの場合
+//			if(check_double_slope(end))
+//			{
+//				need_height++
+//			}
+		}
+	}
+	// 整地開始直前の座標が登坂のパターン
+	temp_pos = finder.move_coord(from, slope.to_dir(f_slope))
+	if(f_slope != slope.flat && temp_pos != null && compare_coord(tile_list[0], temp_pos))
+	{
+		need_height++
+	}
+	// スロープ設置タイル決め
+	local set_slope_tile_list = []
+	if(need_height != 0)
+	{
+		local n = tbl_slope_OK_tile_list.len() / need_height
+		foreach(tbl_slope_OK_tile in tbl_slope_OK_tile_list)
+		{
+			if(n <= tbl_slope_OK_tile.distance)
+			{
+				set_slope_tile_list.append(tbl_slope_OK_tile.tile)
+				n = n + n
+			}
+		}
+	}
+	
+	local z = from.z
+	for(local ii = 0; ii < tile_list.len(); ii++)
+	{
+		while(tile_list[ii].z > z)
+		{
+			command_x.set_slope(our_player, tile_list[ii], slope.all_down_slope)
+			tile_list[ii].z--
+		}
+		while(tile_list[ii].z < z)
+		{
+			command_x.set_slope(our_player, tile_list[ii], slope.all_up_slope)
+			tile_list[ii].z++
+		}
+		command_x.set_slope(our_player, tile_list[ii], slope.flat)
+		if(is_member(tile_list[ii], set_slope_tile_list))
+		{
+			local temp_d = null
+			if(ii != 0 && ii == tile_list.len() - 1)
+			{
+				temp_d = coord(tile_list[ii].x-tile_list[ii-1].x, tile_list[ii].y-tile_list[ii-1].y).to_dir()
+			}else{
+				if(tile_list.len() == 1)
+				{
+					temp_d = coord(end.x-tile_list[ii].x, end.y-tile_list[ii].y).to_dir()
+				}else{
+					temp_d = coord(tile_list[ii+1].x-tile_list[ii].x, tile_list[ii+1].y-tile_list[ii].y).to_dir()
+				}
+			}
+			if(from.z - end.z < 0)
+			{
+				command_x.set_slope(our_player, tile_list[ii], dir.to_slope(temp_d))
+				z++
+			}
+			if(from.z - end.z > 0)
+			{
+				command_x.set_slope(our_player, tile_list[ii], slope.all_down_slope)
+				tile_list[ii].z--
+				command_x.set_slope(our_player, tile_list[ii], dir.to_slope(dir.backward(temp_d)))
+				z--
+			}
+		}
+	}
+}
+
+/***************************************
+ * スロープの向きが指定方向と一致するかチェック
+ * 引数：スロープ(slope)、向き(dir)
+ * 戻り値：一致(true)、不一致(false)
+ ***************************************/
+function check_slope_dir(target_slope, d)
+{
+	if(target_slope == slope.flat){ return true }
+	local slope_dir = slope.to_dir(target_slope)
+	if(is_member(slope_dir, [d, dir.backward(d)])){ return true }
+	return false
+}
+
 
 /*
  *
@@ -5220,7 +5596,7 @@ function destroy_line(line_obj, good, link_obj) {
       cnv.destroy(our_player)
       //::debug.pause()
 
-      // Pr�fen warum next_vehicle_check nicht vorhanden bei Schiffslinien
+      // Pr・en warum next_vehicle_check nicht vorhanden bei Schiffslinien
       // line_x statt link.line
       //if ( wt != wt_water ) {
         line_obj.next_vehicle_check = world.get_time().ticks + (world.get_time().ticks_per_month * 1)

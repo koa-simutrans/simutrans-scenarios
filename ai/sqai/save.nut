@@ -22,14 +22,11 @@ function loadinstance(classname, table)
 	}
 	else if (classname == "freight_station_manager_t" ) {
 		station_manager = new_instance
-		station_manager.repair_keys()
 	}
 	else if (classname == "ship_connector_t") {
 		new_instance.repair_keys()
 	}
-	else if (classname == "industry_link_t") {
-		new_instance.update_lines()
-	}
+
 	return new_instance
 }
 
@@ -41,10 +38,7 @@ function saveinstance(classname, instance)
 		if (typeof(val) == "function") {
 			continue
 		}
-		// only save slots that are not equal to default values
-		if (val != instance[key]) {
-			t[key] <- instance[key]
-		}
+		t[key] <- instance[key]
 	}
 	return "::loadinstance(\"" + classname + "\", " + recursive_save(t, "\t\t\t", []) + ")"
 }
