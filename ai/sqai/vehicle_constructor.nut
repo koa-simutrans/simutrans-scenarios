@@ -278,6 +278,19 @@ class vehicle_constructor_t extends node_t
 		// 往路のスケジュール追加
 		for(local ii = 0; ii < array_bus_stop.len(); ii++)
 		{
+			// 始発バス停に待機時間設定
+			if(ii == 0)
+			{
+				local load = 30
+				local wait = 704
+				if ( array_bus_stop.len() < 5 )
+				{
+					load = 40
+					wait = 968
+				}
+				schedule.entries.append( schedule_entry_x(array_bus_stop[ii], load, wait) )
+				continue
+			}
 			schedule.entries.append( schedule_entry_x(array_bus_stop[ii], 0, 0) )
 		}
 		// 復路のスケジュール追加
@@ -596,6 +609,7 @@ class vehicle_constructor_t extends node_t
 				local wait_pas = 0
 				local schedule_entries = line.get_schedule().entries
 				local halt_list = map(schedule_entries, @(a) a.get_halt(pl))
+
 				halt_list = filter(halt_list, @(a) a != null)
 				foreach(schedule in schedule_entries)
 				{
@@ -626,10 +640,59 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 				{
 					if(line.get_waytype() == wt_road)
 					{
-						add_road_convoy(line, pl)
+						local check_add_convoy = true
+
+						// check transported good
+						local transported_goods = line.get_transported_goods()
+						// line not transported good = not add convoy
+						if ( ( transported_goods[0] + transported_goods[1] ) == 0 )
+						{
+							check_add_convoy = false
+						}
+
+						// check convoy count
+						local line_convoy_count = line.get_convoy_count()
+						// last two month change convoy count = not add convoy
+						// convoy count 0 = new line
+						if ( line_convoy_count[2] == 0 || line_convoy_count[1] == 0 )
+						{
+							// new line not add cnv
+							check_add_convoy = false
+						} else if ( line_convoy_count[1] > line_convoy_count[2] || line_convoy_count[0] > line_convoy_count[1] ) {
+							// not add cnv, last month add cnv
+							check_add_convoy = false
+						}
+
+						// not add cnv first 1/3 from month
+						local time_check = world.get_time().next_month_ticks - ( world.get_time().ticks_per_month - (abs(world.get_time().ticks_per_month / 3) * 2) )
+						if ( world.get_time().ticks < time_check )
+						{
+							check_add_convoy = false
+						}
+
+						if(check_add_convoy)
+						{
+							if ( schedule_entries[0].wait > 88 )
+							{
+								// change waiting time and load
+								schedule_entries[0].wait = schedule_entries[0].wait - 88
+								local schedule = schedule_x(line.get_waytype(), schedule_entries)
+								line.change_schedule(pl, schedule)
+								gui.add_message_at(pl, " reduce waiting time schedule line " + line.get_name(), world.get_time())
+							} else if ( schedule_entries[0].wait == 88 ){
+								// remove waiting time and load
+								schedule_entries[0].wait = 0
+								schedule_entries[0].load = 0
+								local schedule = schedule_x(line.get_waytype(), schedule_entries)
+								line.change_schedule(pl, schedule)
+								gui.add_message_at(pl, " remove load/wait schedule line " + line.get_name() world.get_time())
+							} else {
+								add_road_convoy(line, pl)
+							}
+						}
 						// 道路高速化
 						road_info.update_road(line)
-					}else{
+					} else if ( line.get_waytype() == wt_rail ) {
 						local stop_pos = (stop.get_tile_list())[0]
 						solute_overflow_station(line, pl)
 						// 公共駅の場合、ホーム延伸とかすると駅情報が更新される
@@ -664,6 +727,7 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 				}
 			}
 		}
+		sleep()
 	}
 
 	/***************************************
@@ -1222,10 +1286,36 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 		}
 		if(wait_pas * 10 < convoy_cap)
 		{
+			local remove_cnv = true
+			local line_cnv_count = line.get_convoy_count()
+			if ( line_cnv_count[1] < line_cnv_count[2] || line_cnv_count[0] < line_cnv_count[1] )
+			{
+				remove_cnv = false
+				gui.add_message_at(pl, line.get_name() + ": not remove cnv; last month remove convoy from line ", world.get_time())
+			}
+
+			// not remove cnv first 1/3 from month
+			local time_check = world.get_time().next_month_ticks - ( world.get_time().ticks_per_month - (abs(world.get_time().ticks_per_month / 3) * 2) )
+			if ( world.get_time().ticks < time_check )
+			{
+				remove_cnv = false
+			}
+
 			local convoy_list = line.get_convoy_list()
-			if(convoy_list.get_count() > 1)
+			if( remove_cnv && convoy_list.get_count() > 1)
 			{
 				convoy_list[0].toggle_withdraw(pl)
+			} else {
+				// change schedule
+				// change waiting time
+				local schedule_entries = line.get_schedule().entries
+				if (schedule_entries[0].wait > 0 && schedule_entries[0].wait < 2000 )
+				{
+					schedule_entries[0].wait = schedule_entries[0].wait + 88
+					local schedule = schedule_x(line.get_waytype(), schedule_entries)
+					line.change_schedule(pl, schedule)
+					gui.add_message_at(pl, " increase waiting time schedule line " + line.get_name(), world.get_time())
+				}
 			}
 		}
 	}

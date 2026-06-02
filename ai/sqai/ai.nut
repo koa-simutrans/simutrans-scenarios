@@ -453,8 +453,10 @@ function step()
 gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
-local target = finder.coord2D_to_tile(coord(244,371))
-rail_info.insert_new_station(target.get_halt())
+local aaa = finder.coord2D_to_tile(coord(498,451))
+local target = finder.coord2D_to_tile(coord(499,451))
+local bbb=station.expand_straight_rail(our_player, target, aaa)
+gui.add_message_at(our_player, ""+coord_to_string(bbb), bbb)
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
@@ -952,7 +954,7 @@ if(debug_mode)
 					if(mo != null){ budget += mo.get_desc().get_maintenance() }
 				}
 				// Œö‹¤‰»‚ÍˆÛŽ”ï‚Ì60”{(Œ»‹à‚ª‚ ‚é‚©A•‰Â‚ª‚ ‚Á‚Ä‚à•ŽšŒo‰c‚È‚çŒö‹¤‰»ŽÀŽ{)
-				if(our_player.get_current_cash() * 100 > 60 * budget || judge_investment(60 * budget, 0))
+				if(our_player.get_current_cash() * 100 > settings.get_make_public_months() * budget || judge_investment(settings.get_make_public_months() * budget, 0))
 				{
 					local sta_name = around_halt_list[0].get_name()
 					local cmd = command_x(tool_make_stop_public)

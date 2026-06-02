@@ -1844,96 +1844,34 @@ return err }
 		local sta_info = get_station_info(halt, 2, be_electrified)
 		local tbl_form_info_list = sta_info.tbl_form_info_list
 
-		// 未使用ホームがある場合、未使用ホームの情報を戻り値に入れて処理終了
-/*		if(tbl_form_info_list.len() > 2)
-		{
-			local tbl_form_info = get_line_using_track(halt, 2)
-			tbl_form_info_list = filter(tbl_form_info_list, @(a) !(is_member(a.stop, map(tbl_form_info, @(b) b.stop))))
-			if(tbl_form_info_list.len() != 0)
-			{
-				// 戻り値情報作成
-				local d = tbl_form_info_list[0].dir
-				if(d == dir.northsouth){ d = dir.north }
-				if(d == dir.eastwest){ d = dir.east }
-				if(dir.is_twoway(tbl_form_info_list[0].dir))
-				{
-					local temp_tileA = trace_way(stop, wt_rail, d, @(a) abs(stop.x-a.x) < 4 && abs(stop.y-a.y) < 4)
-					local temp_tileB = trace_way(stop, wt_rail, dir.backward(d), @(a) abs(stop.x-a.x) < 4 && abs(stop.y-a.y) < 4)
-					local sort_list = sort([temp_tileA.top(), temp_tileB.top()], @(a,b) abs(b.x-branch_side.x)+abs(b.y-branch_side.y) <=> abs(a.x-branch_side.x)+abs(a.y-branch_side.y))
-					rtn.enter <- sort_list[0]
-					rtn.exit <- sort_list[1]
-				}else{
-					local temp_tileA = trace_way(stop, wt_rail, d, @(a) !(dir.is_threeway(a.get_way_dirs(wt_rail))))
-					local temp_tileB = trace_way(stop, wt_rail, dir.backward(d), @(a) !(dir.is_threeway(a.get_way_dirs(wt_rail))))
-					if(dir.is_curve(temp_tileA.top().get_way_dirs(wt_rail))){ rtn.enter <- temp_tileA.top() }
-					
-				}
-			}
-		}*/
 		local stop_flg = false
 		// 棒線駅に行き違い設備を設ける
 		if(tbl_form_info_list.len() == 1)
 		{
 			local err = set_passing_each_other(pl, halt)
-			local stop = tbl_form_info_list[0].stop
-			if(err)
-			{
-				stop_flg = true
-				// 戻り値情報作成
-				local sort_list = get_boundary_station_pos(stop, 4)
-				sort_list = sort(sort_list, @(a,b) abs(b.x-branch_side.x)+abs(b.y-branch_side.y) <=> abs(a.x-branch_side.x)+abs(a.y-branch_side.y))
-				if(dir.is_single(sort_list[1].get_way_dirs(wt_rail))){ sort_list.reverse() }
-				rtn.enter <- sort_list[0]
-				rtn.exit <- sort_list[1]
-				rtn.halt <- halt
-				return rtn
-			}
+			if(err){ stop_flg = true }
+			
 			// haltを更新
-			halt = stop.get_halt()
+			halt = tbl_form_info_list[0].stop.get_halt()
 		}
 		// 棒線終端駅だった場合、2線で拡張をとどめる
 		if(tbl_form_info_list.len() == 1 && dir.is_single(tbl_form_info_list[0].dir))
 		{
 			stop_flg = true
-			// 使用数の少ないホーム取得
-			local tbl_stop_info = get_line_using_track(halt, 2)
-			tbl_stop_info = sort(tbl_stop_info, @(a,b) a.line_list.len() <=> b.line_list.len())
-			local sort_list = get_boundary_station_pos(tbl_stop_info[0].stop, 4)
-			sort_list = sort(sort_list @(a,b) abs(b.x-branch_side.x)+abs(b.y-branch_side.y) <=> abs(a.x-branch_side.x)+abs(a.y-branch_side.y))
-			// 戻り値にポイントは回避する
-			local sort1_dir = sort_list[1].get_way_dirs(wt_rail)
-			if(dir.is_threeway(sort1_dir))
-			{
-				local sort1_dir_list = finder.divide_dir(sort1_dir)
-				sort1_dir_list = filter(sort1_dir_list, @(a) !(is_member(a, [tbl_form_info_list[0].dir, dir.backward(tbl_form_info_list[0].dir)])))
-				if(sort1_dir_list.len() != 0)
-				{
-					sort_list[1] = finder.coord2D_to_tile(finder.move_coord(sort_list[1], sort1_dir_list[0]))
-				}
-			}
-			rtn.enter <- sort_list[0]
-			rtn.exit <- sort_list[1]
-			rtn.halt <- halt
-			return rtn
 		}
 		
 		if(stop_flg)
 		{
-			local stop_list = map(tbl_form_info_list, @(a) a.stop)
-			// 駅情報更新
-			sta_info = get_station_info(halt, 2, be_electrified)
-			local tbl_new_form_info_list = sta_info.tbl_form_info_list
-			tbl_new_form_info_list = filter(tbl_new_form_info_list, @(a) !(is_member(a.stop, map(tbl_form_info_list, @(b) b.stop))))
-			if(tbl_new_form_info_list.len() != 0)
+			// 使用数の少ないホーム取得
+			local tbl_stop_info = get_line_using_track(halt, 2)
+			tbl_stop_info = sort(tbl_stop_info, @(a,b) a.line_list.len() <=> b.line_list.len())
+			local tbl_temp = get_sta_enter_exit(tbl_stop_info[0].stop, branch_side, pl)
+			if(tbl_temp != null)
 			{
-				stop_list =[tbl_new_form_info_list[0].stop]
-			}
-			for(local ii = 0; ii < stop_list.len(); ii++)
-			{
-				local sort_list = get_boundary_station_pos(stop_list[ii], 4)
-				sort_list = sort(sort_list @(a,b) abs(a.x-branch_side.x)+abs(a.y-branch_side.y) <=> abs(b.x-branch_side.x)+abs(b.y-branch_side.y))
-				local sta_dir_list = finder.divide_dir(tbl_form_info_list[0].dir)
-//				local temp_dir = 
+				rtn.enter <- tbl_temp.enter
+				rtn.exit <- tbl_temp.exit
+				rtn.halt <- halt
+				return rtn
 			}
 		}
 
@@ -1987,14 +1925,13 @@ return err }
 		rtn.enter <- end_tile
 		
 		local in_sta_signal_pos = null
+		d = dir.backward(branch_rail_list[1].get_way_dirs(wt_rail))
 		local origin_d = d
 		// 駅舎壊さずホーム追加した場合
 		if(filter(sta_info.sta_office_tile_list, @(a) a.has_way(wt_rail)).len() == 0)
 		{
 			local sub_line_pos = finder.coord2D_to_tile(finder.move_coord(branch_rail_list[1], dir.backward(tbl_expand_form_info.expand_dir)))
 			// 副本線から1マス外方に延長
-			d = dir.backward(branch_rail_list[1].get_way_dirs(wt_rail))
-			origin_d = d
 			local extend_pos = finder.coord2D_to_tile(finder.move_coord(sub_line_pos, d))
 			if(extend_pos == null){ return }
 			extend_pos = expand_straight_rail(pl, sub_line_pos, extend_pos)
@@ -2190,14 +2127,81 @@ return err }
 		// 分岐駅設置に不適切なので、分岐線を廃止し処理終了
 		if(temp_tile == null){ temp_tile = branch_rail_list[1] }
 		local tool = command_x(tool_remove_way)
-		tool.work(pl, branch_rail_list[0], temp_tile, "" + wt_rail)
+		tool.work(pl, branch_rail_list[0], branch_rail_list[1], "" + wt_rail)
 		if(branch_rail_list[0].has_way(wt_rail) && branch_rail_list[0].get_way_dirs(wt_rail) == dir.backward(tbl_expand_form_info.expand_dir))
 		{
 			tool.work(pl, branch_rail_list[0], finder.coord2D_to_tile(finder.move_coord(branch_rail_list[0], dir.backward(tbl_expand_form_info.expand_dir))), "" + wt_rail)
 		}
-		return
+		if(branch_rail_list[1].has_way(wt_rail))
+		{
+			local list = trace_way(branch_rail_list[1], wt_rail, branch_rail_list[1].get_way_dirs(wt_rail), @(a) !(dir.is_threeway(a.get_way_dirs(wt_rail))))
+			if(list.len() > 1)
+			{
+				tool.work(pl, list[0], list[list.len() - 1], "" + wt_rail)
+			}
+			rtn.exit <- list.top()
+			rtn.halt <- halt
+			return rtn
+		}
 	}
 	}
+
+	/***************************************
+	 * update_junction_station関数で駅拡張失敗した時の戻り値enter,exitの情報作成
+	 * 引数：探索開始地点(tile_x)、分岐側の基準点(tile_x)、プレイヤー会社(player_x)
+	 * 戻り値：駅の入場、出場タイル
+	 * 　　　　enter：駅に入場するタイル(tile_x)
+	 * 　　　　exit：分岐駅から線路敷設する時の始点(tile_x)
+	 * 備考 : 探索開始地点はホームがあること
+	 ***************************************/
+	 function get_sta_enter_exit(pos, branch_side, pl)
+	 {
+	 	// 分岐開始タイルと線路を分岐させる向き取得
+	 	local sort_list = get_boundary_station_pos(pos, 4)
+		sort_list = sort(sort_list @(a,b) abs(a.x-branch_side.x)+abs(a.y-branch_side.y) <=> abs(b.x-branch_side.x)+abs(b.y-branch_side.y))
+		local sta_dir_list = finder.divide_dir(pos.get_way_dirs(wt_rail))
+		local temp_dir_list = [coord(branch_side.x-pos.x, 0).to_dir(), coord(0, branch_side.y-pos.y).to_dir()]
+		local end_dir = filter(temp_dir_list, @(a) is_member(a, sta_dir_list))
+		temp_dir_list = filter(temp_dir_list, @(a) !(is_member(a, sta_dir_list)))
+		local start_dir= dir.none
+		if(temp_dir_list.len() == 0 || temp_dir_list[0] == dir.none)
+		{
+			start_dir = coord(branch_side.x-pos.x, branch_side.y-pos.y).to_dir()
+		}else{
+			start_dir= temp_dir_list[0]
+		}
+		
+		local tile = sort_list[0]
+		// 分岐開始タイル外方に線路がない場合、分岐向きを外方にする
+		if(!(is_member(end_dir[0], finder.divide_dir(tile.get_way_dirs(wt_rail)))))
+		{
+			start_dir = end_dir[0]
+		}
+		// 分岐線設置可能エリア探索
+		local tile_list = []
+		while(1)
+		{
+			tile_list = [finder.coord2D_to_tile(finder.move_coord(tile, start_dir))]
+			if(start_dir != end_dir[0])
+			{
+				tile_list.append(finder.coord2D_to_tile(finder.move_coord(tile_list[0], end_dir[0])))
+			}
+			if(!(is_member(false, filter(tile_list, @(a) a.is_empty())))){ break }
+			if(is_member(null, tile_list)){ return }
+			tile = finder.coord2D_to_tile(finder.move_coord(tile, end_dir[0]))
+		}
+		// 分岐線設置
+		local rtn =
+		{
+			enter = sort_list[1]
+			exit = expand_straight_rail(pl, tile, tile_list[0])
+		}
+		if(tile_list.len() == 2)
+		{
+			rtn.exit <- expand_straight_rail(pl, tile_list[0], tile_list[1])
+		}
+		return rtn
+	 }
 
 	/***************************************
 	 * 駅を撤去
@@ -2344,40 +2348,28 @@ return err }
 		local err = command_x.build_way(pl, start, end, way_desc, true)
 		if(err)
 		{
-			if(!(start.has_way(wt_rail))){ return }
-			local d = start.get_way_dirs(wt_rail)
 			local dist = abs(end.x - start.x) + abs(end.y - start.y)
-			local temp_d = coord(end.x - start.x, end.y - start.y).to_dir()
+			local d = coord(end.x - start.x, end.y - start.y).to_dir()
+			if(start.has_way(wt_rail))
+			{
+				d = start.get_way_dirs(wt_rail)
+			}
 			if(dir.is_single(d))
 			{
 				local bridge_list = bridge_desc_x.get_available_bridges(wt_rail)
 				if(bridge_list.len() == 0){ return }
 				local len = 1
-				end = bridge_planner_x.find_end(pl, start, dir.backward(d), bridge_list[0], len)
+				end = bridge_planner_x.find_end(pl, start, d, bridge_list[0], len)
 				// 線路敷設時、線路より高規格な道路をオーバーパスする時や
 				// 船舶が航行可能な川をheight=8でオーバーパスする時、
 				// end.xが負数になるので対処
-				if(end.x < 0)
+				while(end.x < 0)
 				{
-					while(!end || len < bridge_list[0].get_max_length())
-					{
-						end = finder.coord2D_to_tile(finder.move_coord(start, dir.backward(d), len))
-						len++
-					}
+					len++
+					if(!end || len < bridge_list[0].get_max_length()){ break }
+					end = finder.coord2D_to_tile(finder.move_coord(start, d, len))
 				}
 				err = command_x.build_bridge(pl, start, end, bridge_list[0])
-				if(!err)
-				{
-					// 延伸方向と橋梁をかける方向が異なる場合の処理
-					start = finder.coord2D_to_tile(finder.move_coord(end, dir.backward(d)))
-					end = finder.coord2D_to_tile(finder.move_coord(start, temp_d, dist))
-					target_tile_list = finder.get_interpolate_tile(start, end)
-					map(target_tile_list, @(a) a.remove_object(pl, mo_building))
-					target_tile_list = finder.align_height(target_tile_list, start.z, pl, false)
-					target_tile_list = finder.flat_tiles(target_tile_list, pl)
-					end = finder.coord2D_to_tile(end)
-					err = command_x.build_way(pl, start, end, way_desc, true)
-				}
 			}
 			if(err){ return }
 		}

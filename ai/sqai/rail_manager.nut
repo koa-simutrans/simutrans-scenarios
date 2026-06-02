@@ -499,12 +499,17 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 				prev_halt = candidate_tile.get_halt()
 				insert_new_station(prev_halt)
 			}
+		}else{
+			candidate_tile = finder.check_sta_freight_property(prev_halt, wt_rail, 2).top()
 		}
 
 		// •ªŠò‰w‚Ì•ªŠò‘¤‚ğƒ^[ƒ~ƒiƒ‹‰w‘¤‚Æ‹t‘¤‚Éİ’è‚·‚é
-		if(!(candidate_tile)){ candidate_tile = finder.check_sta_freight_property(prev_halt, wt_rail, 2).top() }
 		local boundary_list = station.get_boundary_station_pos(candidate_tile, 2)
 		local terminal = station.get_own_terminal_station(pl)
+		if(terminal != null && finder.is_same_halt(prev_halt, terminal))
+		{
+			terminal = null
+		}
 		if(terminal != null)
 		{
 			local tbl_terminal_info = station.get_station_info(terminal, 2, false)
