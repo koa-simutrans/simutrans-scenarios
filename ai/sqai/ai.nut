@@ -762,17 +762,63 @@ if(debug_mode)
 		local road_info = road_manager_t()
 		foreach(city in city_list_x())
 		{
-			// 他社のバス停がある場合は、
-			// バス停設置
-			local bus_stop_list = finder.get_road_for_city_bus(city, our_player)
-			if(bus_stop_list.len() != 0)
+			// 他社のバス停がある場合は、整備しない
+			local com_halt_list = []
+			local com_idx = 0
+			// 0はプレイヤー、1は公共
+			for(local ii = 2; ii < city_player_nr; ii++)
 			{
-				for(local ii=0; ii<bus_stop_list.len(); ii++)
+				if(our_player_nr == ii){ continue }
+				com_halt_list = finder.reseach_sta_in_city(city, ii)
+				if(com_halt_list.len() > 1)
 				{
-					local err = road_info.build_bus_stop(our_player, bus_stop_list[ii])
+					com_idx = ii
+					break
+				}
+			}
+
+			// バス停設置
+			if(com_idx == 0)
+			{
+				local bus_stop_list = finder.get_road_for_city_bus(city, our_player)
+				if(bus_stop_list.len() != 0)
+				{
+					for(local ii=0; ii<bus_stop_list.len(); ii++)
+					{
+						local err = road_info.build_bus_stop(our_player, bus_stop_list[ii])
+						if(err)
+						{
+							gui.add_message_at(our_player, "failed build busstop at "+ coord_to_string(bus_stop_list[ii]), bus_stop_list[ii])
+						}
+					}
+				}
+			}else{
+				local terminal = finder.get_bus_terminal(city, player_x(com_idx))
+				if(terminal.get_halt().get_owner().nr != 1)
+				{
+					local tile_list = terminal.get_halt().get_tile_list()
+					local neighbor_tile_list = finder.bldg_neighbor_tile_list(tile_list)
+					neighbor_tile_list = filter(neighbor_tile_list, @(a) a.has_way(wt_road) && dir.is_straight(a.get_way_dirs(wt_road)) || !(a.is_bridge() && a.get_slope() == 0))
+					local err = null
+					foreach(neighbor_tile in neighbor_tile_list)
+					{
+						err = road_info.build_bus_stop(our_player, neighbor_tile)
+						if(!(err)){ break }
+					}
 					if(err)
 					{
-						gui.add_message_at(our_player, "failed build busstop at "+ coord_to_string(bus_stop_list[ii]), bus_stop_list[ii])
+						foreach(com_halt in com_halt_list)
+						{
+							tile_list = com_halt.get_tile_list()
+							neighbor_tile_list = finder.bldg_neighbor_tile_list(tile_list)
+							neighbor_tile_list = filter(neighbor_tile_list, @(a) a.has_way(wt_road) && dir.is_straight(a.get_way_dirs(wt_road)) || !(a.is_bridge() && a.get_slope() == 0))
+							foreach(neighbor_tile in neighbor_tile_list)
+							{
+								err = road_info.build_bus_stop(our_player, neighbor_tile_list[0])
+								if(!(err)){ break }
+							}
+							if(!(err)){ break }
+						}
 					}
 				}
 			}
