@@ -927,6 +927,12 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 						temp_list = filter(temp_list, @(a) dir.is_single(a.get_way_dirs(wt_rail)))
 						rtn.tile <- temp_list[0]
 					}else{
+						// 1番目の経由地の場合、呼び出し元で分岐駅作ってるので以降の処理スキップ
+						if(compare_coord(rtn.tile, start))
+						{
+							idx++
+							continue
+						}	
 						rtn.already_halt <- halt
 						rtn.tile <- tbl_sta_info.tbl_form_info_list[0].stop
 					}
@@ -951,7 +957,11 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 			{
 				// 分岐駅設置
 				local tbl_update_info = build_rail_junction(rtn.already_halt, target_via_list[idx], pl)
-				if(tbl_update_info == null){ break }
+				if(tbl_update_info == null)
+				{
+					 idx++
+					 continue
+				}
 				rtn.already_halt <- null
 				rtn.tile <- tbl_update_info.exit
 			}

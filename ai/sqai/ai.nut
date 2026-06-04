@@ -827,9 +827,7 @@ if(debug_mode)
 		{
 			// 一旦、市域内の利用可能バス停を取得(スケジュール設定中に落ちても再開できるように)
 			local halt_in_city_list = finder.check_busstop_in_city(city, our_player, 0)
-			// 路線に所属していないバス停があれば、処理続行
 			local initial_halt_list = filter(halt_in_city_list, @(a) a.get_line_list().get_count() == 0)
-			if(initial_halt_list.len() == 0){ continue }
 			local public_halt_in_city_list = finder.check_busstop_in_city(city, player_x(1), 1)
 			for(local ii = 0; ii< public_halt_in_city_list.len(); ii++)
 			{
@@ -843,7 +841,12 @@ if(debug_mode)
 				{
 					halt_in_city_list.append(public_halt_in_city_list[ii])
 				}
+				local line_list = public_halt_in_city_list[ii].get_line_list()
+				line_list = filter(line_list, @(a) a.get_owner().nr == our_player_nr)
+				if(line_list.len() == 0){ initial_halt_list.append(public_halt_in_city_list[ii]) }
 			}
+			// 路線に所属していないバス停がないなら処理終了
+			if(initial_halt_list.len() == 0){ continue }
 			// 市域内に使用可能なバス停が一つしかないなら処理終了
 			local terminal = finder.get_bus_terminal(city, our_player)
 			if(halt_in_city_list.len() == 1 && is_member(terminal, halt_in_city_list[0].get_tile_list())){ continue }
