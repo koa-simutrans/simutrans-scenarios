@@ -1508,151 +1508,151 @@ if(debug_mode){
 			}
 		}
 		
-		// ‰˜H˜Hü‚ğ‘Io(ƒx[ƒX‚Ì‰w‚ğ’Ê‚Á‚Ä‚¢‚é˜Hü‚ğ‘IoA‚È‚¢ê‡‚Í‘SŒó•â‚ğ‚»‚Ì‚Ü‚Ü’Ê‚·)
-		local outward_root = []
+		// ‰˜H˜Hü‚ğ‘Io(ƒx[ƒX‚Ì‰w‚ğ’Ê‚Á‚Ä‚¢‚é˜Hü‚ğ‘IoA‚È‚¢ê‡‚Í‰w”‚ªÅ¬‚Ì˜Hü‚ğ‘Io)
+		local temp_root = []
 		local no_candidate_root = []
 		foreach(candidate_root in _step_generator(outward_root_list))
 		{
 			local halt_list = map(candidate_root, @(a) a.halt.get_name())
 			if(is_member(base_terminal.get_name(), halt_list))
 			{
-				outward_root.append(candidate_root)
+				temp_root.append(candidate_root)
 			}else{
 				// ƒx[ƒX‚Ì‰w‚ğ’Ê‚Á‚Ä‚¢‚È‚¢‚Ì‚ÅŒó•â‚©‚çŠO‚ê‚½‰˜H˜Hü‚ğæ“¾
 				no_candidate_root.append(candidate_root)
 			}
 		}
-		if(outward_root.len() == 0)
+		if(temp_root.len() == 0)
 		{
-			outward_root = outward_root_list
-			no_candidate_root = []
+			temp_root = outward_root_list
 		}
 		// ‰˜H˜Hü‚ğ’âÔ‰w”‚Å¸‡ƒ\[ƒg
-		outward_root = sort(outward_root, @(a,b) a.len() <=> b.len())
+		temp_root = sort(temp_root, @(a,b) a.len() <=> b.len())
+		local outward_root = temp_root[0]
+		if(no_candidate_root.len() == outward_root_list.len())
+		{
+			no_candidate_root = temp_root.slice(1)
+		}
 		if(no_candidate_root.len() != 0)
 		{
+
 			// ‰˜H˜Hü‚Ì’†‚É‰wè‘O‚Å180“xƒ^[ƒ“‚·‚é˜Hü‚Í‰w‚ÅƒXƒCƒbƒ`ƒoƒbƒN‚·‚é‚æ‚¤‚É‰w‚ğ‘}“ü
-			foreach(temp_outward_root in outward_root)
+			local jj = 1
+			local kk = 0
+			local no_candidate_root_bk = no_candidate_root
+			// Še‰˜H˜Hü‚Ì’âÔ‰w•ªƒ‹[ƒv
+			while(jj + kk < outward_root.len())
 			{
-				local jj = 1
-				local kk = 0
-				local no_candidate_root_bk = no_candidate_root
-				// Še‰˜H˜Hü‚Ì’âÔ‰w•ªƒ‹[ƒv
-				while(jj + kk < temp_outward_root.len())
+				no_candidate_root_bk = filter(no_candidate_root_bk, @(a) a.len() > jj)
+				local no_candidate_stop_list = map(no_candidate_root_bk, @(a) a[jj].stop)
+				no_candidate_stop_list = unique(no_candidate_stop_list)
+				// ‰˜H˜Hü‚ÆŒó•â‚©‚çŠO‚ê‚½˜Hü‚Åjj”Ô–Ú‚Ì‰w‚ªˆÙ‚È‚é
+				no_candidate_stop_list = filter(no_candidate_stop_list, @(a) !(compare_coord(outward_root[jj+kk].stop, a)))
+				if(no_candidate_stop_list.len() == 0)
 				{
-					no_candidate_root_bk = filter(no_candidate_root_bk, @(a) a.len() > jj)
-					local no_candidate_stop_list = map(no_candidate_root_bk, @(a) a[jj].stop)
-					no_candidate_stop_list = unique(no_candidate_stop_list)
-					// ‰˜H˜Hü‚ÆŒó•â‚©‚çŠO‚ê‚½˜Hü‚Åjj”Ô–Ú‚Ì‰w‚ªˆÙ‚È‚é
-					no_candidate_stop_list = filter(no_candidate_stop_list, @(a) !(compare_coord(temp_outward_root[jj+kk].stop, a)))
-					if(no_candidate_stop_list.len() == 0)
-					{
-						jj++
-						continue
-					}
-					local no_candidate_root_jj = []
-					foreach(no_candidate_stop in no_candidate_stop_list)
-					{
-						local temp = filter(map(no_candidate_root_bk, @(a) a[jj]), @(b) compare_coord(b.stop, no_candidate_stop))
-						no_candidate_root_jj.append(temp[0])
-					}
-					// Œó•â‚©‚çŠO‚ê‚½˜Hü‚Ì1”Ô–Újj-1”Ô–Ú‚Ì’âÔ‰wÀ•Wæ“¾
-					local previous_stop = no_candidate_root_bk[0][jj-1].stop
-					// ‰˜H˜Hü‚Ìjj+kk”Ô–Ú‚Æjj+kk-1”Ô–Ú‚Ì‹——£æ“¾
-					local dist = get_trace_tile(temp_outward_root[jj+kk-1].stop, temp_outward_root[jj+kk].stop, wt_rail, true)
-					local tbl_no_candidate_info_list = []
-					// ‰˜H˜Hü‚Ìjj+kk”Ô–Ú`jj+kk-1”Ô–Ú‚æ‚èŒó•â‚©‚çŠO‚ê‚½˜Hü‚Ì•û‚ª’Z‚¢ê‡‚ÍA
-					// jj+kk”Ô–Ú‚ÉŒó•â‚©‚çŠO‚ê‚½˜Hü‚Ì‰w‚ğjj+kk-1”Ô–Ú‚É‹ß‚¢‡‚É‰˜H˜Hü‚É‘}“ü
-					foreach(ncr_jj in no_candidate_root_jj)
-					{
-						local temp_dist = get_trace_tile(previous_stop, ncr_jj.stop, wt_rail, true)
-						local tbl_temp =
-						{
-							dist = temp_dist
-							root = ncr_jj
-						}
-						if(tbl_temp.dist < dist){ tbl_no_candidate_info_list.append(tbl_temp) }
-					}
-					tbl_no_candidate_info_list = sort(tbl_no_candidate_info_list, @(a,b) a.dist <=> b.dist)
-					foreach(tbl_no_candidate_info in tbl_no_candidate_info_list)
-					{
-						temp_outward_root.insert(jj+kk, tbl_no_candidate_info.root)
-						kk++
-					}
-					// ‰˜H˜Hü‚É‘}“ü‚µ‚½AŒó•â‚©‚çŠO‚ê‚½˜Hü‚ğœ‹
-					no_candidate_root_bk = filter(no_candidate_root_bk, @(a) !(is_member(a[jj].stop, no_candidate_stop_list)))
 					jj++
+					continue
 				}
+				local no_candidate_root_jj = []
+				foreach(no_candidate_stop in no_candidate_stop_list)
+				{
+					local temp = filter(map(no_candidate_root_bk, @(a) a[jj]), @(b) compare_coord(b.stop, no_candidate_stop))
+					no_candidate_root_jj.append(temp[0])
+				}
+				// Œó•â‚©‚çŠO‚ê‚½˜Hü‚Ì1”Ô–Újj-1”Ô–Ú‚Ì’âÔ‰wÀ•Wæ“¾
+				local previous_stop = no_candidate_root_bk[0][jj-1].stop
+				// ‰˜H˜Hü‚Ìjj+kk”Ô–Ú‚Æjj+kk-1”Ô–Ú‚Ì‹——£æ“¾
+				local dist = get_trace_tile(outward_root[jj+kk-1].stop, outward_root[jj+kk].stop, wt_rail, true)
+				local tbl_no_candidate_info_list = []
+				// ‰˜H˜Hü‚Ìjj+kk”Ô–Ú`jj+kk-1”Ô–Ú‚æ‚èŒó•â‚©‚çŠO‚ê‚½˜Hü‚Ì•û‚ª’Z‚¢ê‡‚ÍA
+				// jj+kk”Ô–Ú‚ÉŒó•â‚©‚çŠO‚ê‚½˜Hü‚Ì‰w‚ğjj+kk-1”Ô–Ú‚É‹ß‚¢‡‚É‰˜H˜Hü‚É‘}“ü
+				foreach(ncr_jj in no_candidate_root_jj)
+				{
+					local temp_dist = get_trace_tile(previous_stop, ncr_jj.stop, wt_rail, true)
+					local tbl_temp =
+					{
+						dist = temp_dist
+						root = ncr_jj
+					}
+					if(tbl_temp.dist < dist){ tbl_no_candidate_info_list.append(tbl_temp) }
+				}
+				tbl_no_candidate_info_list = sort(tbl_no_candidate_info_list, @(a,b) a.dist <=> b.dist)
+				foreach(tbl_no_candidate_info in tbl_no_candidate_info_list)
+				{
+					outward_root.insert(jj+kk, tbl_no_candidate_info.root)
+					kk++
+				}
+				// ‰˜H˜Hü‚É‘}“ü‚µ‚½AŒó•â‚©‚çŠO‚ê‚½˜Hü‚ğœ‹
+				no_candidate_root_bk = filter(no_candidate_root_bk, @(a) !(is_member(a[jj].stop, no_candidate_stop_list)))
+				jj++
 			}
 		}
 
 		// ‰•œ˜Hü‚ğì¬
-		local tbl_root_info = []
-		foreach(candidate_root in _step_generator(outward_root))
+		local stop_list = []
+		local halt_name_list = []
+		// ‰˜H˜Hü‘Io‚É‰“•û‚Ì‰w->ƒx[ƒX‚Ì‰w‚Åæ“¾‚µ‚Ä‚¢‚é‚Ì‚Å
+		// ‰•œ˜Hü‚Íƒx[ƒX‚Ì‰w->‰“•û‚Ì‰w->ƒx[ƒX‚Ì‰w‚É‚È‚é‚æ‚¤‚É‡”Ô‚ğ“ü‚ê‘Ö‚¦‚é
+		// •œ˜H•ª
+		for(local ii = outward_root.len() - 1; ii > 0; ii--)
 		{
-			local stop_list = []
-			local halt_name_list = []
-			// ‰˜H˜Hü‘Io‚É‰“•û‚Ì‰w->ƒx[ƒX‚Ì‰w‚Åæ“¾‚µ‚Ä‚¢‚é‚Ì‚Å
-			// ‰•œ˜Hü‚Íƒx[ƒX‚Ì‰w->‰“•û‚Ì‰w->ƒx[ƒX‚Ì‰w‚É‚È‚é‚æ‚¤‚É‡”Ô‚ğ“ü‚ê‘Ö‚¦‚é
-			// •œ˜H•ª
-			for(local ii = candidate_root.len() - 1; ii > 0; ii--)
-			{
-				local info = candidate_root[ii].info.tbl_form_info_list
-				// ‰˜H‚Æ‹tŒü‚«‚É”­’…‚Å‚«‚é”Ôü‚ğŒŸõ
-				info = filter(info, @(a) is_member(a.dir, [dir.backward(candidate_root[ii].dir), dir.backward(candidate_root[ii].dir)+candidate_root[ii].dir]))
-				// ƒz[ƒ€‚ğg—p‚µ‚Ä‚¢‚é˜Hü”‚ªÅ¬‚Ìƒz[ƒ€‚ğ‘I‘ğ
-				local tbl_form_info = station.get_line_using_track(candidate_root[ii].halt, 2)
-				if(tbl_form_info.len() > 1){ tbl_form_info = filter(tbl_form_info, @(a) a.stop != candidate_root[ii].stop) }
-				tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
-				tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
-				stop_list.append(tbl_form_info[0].stop)
-				halt_name_list.append(candidate_root[ii].halt.get_name())
-			}
-			// ‰˜H•ª
-			for(local ii = 0; ii < candidate_root.len() - 1; ii++)
-			{
-				stop_list.append(candidate_root[ii].stop)
-				halt_name_list.append(candidate_root[ii].halt.get_name())
-			}
-			local tbl_temp =
-			{
-				stop = stop_list
-				halt_name = halt_name_list
-			}
-			tbl_root_info.append(tbl_temp)
+			local info = outward_root[ii].info.tbl_form_info_list
+			// ‰˜H‚Æ‹tŒü‚«‚É”­’…‚Å‚«‚é”Ôü‚ğŒŸõ
+			info = filter(info, @(a) is_member(a.dir, [dir.backward(outward_root[ii].dir), dir.backward(outward_root[ii].dir)+outward_root[ii].dir]))
+			// ƒz[ƒ€‚ğg—p‚µ‚Ä‚¢‚é˜Hü”‚ªÅ¬‚Ìƒz[ƒ€‚ğ‘I‘ğ
+			local tbl_form_info = station.get_line_using_track(outward_root[ii].halt, 2)
+			if(tbl_form_info.len() > 1){ tbl_form_info = filter(tbl_form_info, @(a) !(compare_coord(a.stop, outward_root[ii].stop))) }
+			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
+			tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
+			stop_list.append(tbl_form_info[0].stop)
+			halt_name_list.append(outward_root[ii].halt.get_name())
 		}
-		// Šù‘¶˜Hü‚Æd•¡‚µ‚Ä‚È‚¢‚©ƒ`ƒFƒbƒN
-		local line_list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
-		local halt_name_list_in_line = []
-		foreach(line in _step_generator(line_list))
+		// ‰˜H•ª
+		for(local ii = 0; ii < outward_root.len() - 1; ii++)
 		{
-			halt_name_list_in_line.append(map(get_halt_list_from_line(line, pl), @(a) a.get_name()))
-		}
-		
-		tbl_root_info = filter(tbl_root_info, @(a) !(is_member_in_doublearray(a.halt_name, halt_name_list_in_line)))
-		if(tbl_root_info.len() == 0)
-		{
-			return null
+			stop_list.append(outward_root[ii].stop)
+			if(ii == 0){ halt_name_list.append(outward_root[ii].halt.get_name()) }
 		}
 
-		// ˜Hüì¬
-		local schedule = schedule_x(wt_rail, [])
-		for(local ii = 0; ii < tbl_root_info[0].stop.len(); ii++)
+		// Šù‘¶˜Hü‚Æd•¡‚µ‚Ä‚È‚¢‚©ƒ`ƒFƒbƒN
+		// Šù‘¶˜Hü‚Ì‚¤‚¿Š‘®•Ò¬‚ª1‚Ì˜Hü‚Å
+		// d•¡‚·‚é‚à‚Ì‚ÍV˜Hü‚É“‡
+		local line_list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
+		line_list = filter(line_list, @(a) a.get_convoy_list().get_count() < 2)
+		local merge_line_list = []
+		foreach(line in line_list)
 		{
-			schedule.entries.append( schedule_entry_x(tbl_root_info[0].stop[ii], 0, 0) )
-		}
-		pl.create_line(wt_rail)
-		local list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
-		foreach(line in list)
-		{
-			local schedule_entries = line.get_schedule().entries
-			if (schedule_entries.len()==0)
+			// V˜Hü‚Æd•¡‚·‚é˜Hü‚ğæ“¾
+			local al_halt_name_list = unique(map(get_halt_list_from_line(line, pl), @(a) a.get_name()))
+			if(!(is_member(false, map(al_halt_name_list, @(a) is_member(a, halt_name_list)))))
 			{
-				line.change_schedule(pl, schedule)
-				return line
+				merge_line_list.append(line)
 			}
 		}
-		return null
+		merge_line_list = sort(merge_line_list, @(a,b) a.get_schedule().entries.len() <=> b.get_schedule().entries.len())
+		local schedule = schedule_x(wt_rail, [])
+		for(local ii = 0; ii < stop_list.len(); ii++)
+		{
+			schedule.entries.append( schedule_entry_x(stop_list[ii], 0, 0) )
+		}
+		if(merge_line_list.len() > 0)
+		{
+			// V˜Hü‚É“‡
+			merge_line_list[0].change_schedule(pl, schedule)
+		}else{
+			// ˜Hüì¬
+			pl.create_line(wt_rail)
+			local list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
+			foreach(line in list)
+			{
+				local schedule_entries = line.get_schedule().entries
+				if (schedule_entries.len()==0)
+				{
+					line.change_schedule(pl, schedule)
+					return line
+				}
+			}
+		}
 	}
 
 	/***************************************
