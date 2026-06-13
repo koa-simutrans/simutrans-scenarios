@@ -1450,7 +1450,12 @@ return err }
 		if(construction_info == null){ return }
 		// Œšİ(Œš’z•¨“P‹->®’n->ü˜H•~İ->ƒz[ƒ€Œšİ)
 		local tl_remove = command_x(tool_remover)
-		foreach(area_tile in _step_generator(finder.get_interpolate_tile(construction_info.area_list[0], construction_info.area_list.top())))
+		local sta_office_move_flg = false
+		local tile_list = finder.get_interpolate_tile(construction_info.area_list[0], construction_info.area_list.top())
+		local d = (coord(tile_list.top().x-tile_list[0].x, tile_list.top().y-tile_list[0].y)).to_dir()
+		local road_info = road_manager_t()
+		local road_list = []
+		foreach(area_tile in _step_generator(tile_list))
 		{
 			if(area_tile.has_way(wt_rail))
 			{
@@ -1467,14 +1472,37 @@ return err }
 							break
 						}
 					}
+					tl_remove.work(pl, area_tile)
 				}
 			}
-			// ü˜H‚Æ’¼Œğ‚·‚é“¹˜H‚Í“¥Ø‚Å‘Îˆ(TODO : ‚»‚¤‚Å‚È‚¢“¹˜H‚Í•t‚¯‘Ö‚¦)
-			if(!(area_tile.has_way(wt_road)))
+			// Šù‘¶“¹˜H‚Í•t‚¯‘Ö‚¦
+			if(area_tile.has_way(wt_road))
 			{
-				tl_remove.work(pl, area_tile)
-				// ÔŒÉ‚Ìü˜H‚Í“P‹
-				if(area_tile.has_way(wt_rail)){ tl_remove.work(pl, area_tile) }
+				local d = area_tile.get_way_dirs(wt_road)
+				// ’¼Œğ‚·‚é“¹˜H‚Í“¥Ø‚É‚·‚é‚Ì‚Å‰½‚à‚µ‚È‚¢
+				if(road_info.check_not_cross_road(area_tile, d))
+				{
+					road_list.append(area_tile)
+				}
+			}
+			// ‰wÉ‚ª‚ ‚Á‚½ê‡AˆÚ“]€”õ
+			if(!(sta_office_move_flg) && area_tile.find_object(mo_building) && area_tile.get_halt() != null)
+			{
+				sta_office_move_flg= true
+			}	
+		}
+		// “¹˜HˆÚİ
+		if(road_list.len() != 0)
+		{
+			local miss_tile_list = road_info.move_road(road_list, construction_info.dir, pl)
+			if(miss_tile_list.len() != 0)
+			{
+				miss_tile_list = filter(miss_tile_list, @(a) a.get_halt() != null)
+				// “¹˜HˆÚİ¸”s‚µ‚Ä‚»‚Ì’†‚ÉƒoƒX’âƒ^ƒCƒ‹‚ª‚ ‚éê‡
+				if(miss_tile_list.len() > 0)
+				{
+					
+				}
 			}
 		}
 		// ü˜H•~İ
@@ -1489,6 +1517,11 @@ return err }
 			gui.add_message_at(pl, "expand_station error [" + halt.get_name() + "]:" + err, construction_info.area_list[0])
 			return null
 		}else{
+			if(sta_office_move_flg)
+			{
+				local tile = finder.coord2D_to_tile(finder.get_center(construct_form_tile_list))
+				build_station_office(pl, tile, null)
+			}
 			// ‰w‚ªŒö‹¤‚È‚ç‰„L•”‚ğŒö‹¤‰»
 			if(halt.get_owner().nr == 1)
 			{
@@ -1752,48 +1785,37 @@ return err }
 				// ü˜H•~İŒó•â‚É‘¼ĞŠ—L’n‚È‚Ç‚Ì“P‹‚Å‚«‚È‚¢‚à‚Ì‚ª‚ ‚éê‡AŒó•â‚©‚çœŠO
 				local other_com_occupy_tile = filter(temp_tile_list, @(a) !(finder.can_remove_all_objects(a, pl)))
 				if(other_com_occupy_tile.len() != 0){ continue }
-				// ü˜H•~İŒó•â‚É’¼ŒğˆÈŠO‚Ì“¹˜H‚ª‚ ‚éê‡A“¹˜H‚ğ•t‚¯‘Ö‚¦
-				local temp_d = dir.double((coord(temp_tile_list[0].x - temp_tile_list[1].x, temp_tile_list[0].y - temp_tile_list[1].y)).to_dir())
-				local no_cross_road_tile_list = filter(temp_tile_list, @(a) road_info.check_not_cross_road(a, temp_d))
-				if(no_cross_road_tile_list.len() != 0)
-				{
-					
-				}
-				
+
 				// ü˜H•~İŠJnˆÊ’uAü˜H•~İI—¹ˆÊ’u‚Å“¹˜H‚ª’¼Œğ‚·‚éê‡AˆÊ’u‚ğ‚¸‚ç‚·
-				temp_d = (coord(temp_tile_list[0].x - temp_tile_list[1].x, temp_tile_list[0].y - temp_tile_list[1].y)).to_dir()
+				local temp_d = (coord(temp_tile_list[0].x - temp_tile_list[1].x, temp_tile_list[0].y - temp_tile_list[1].y)).to_dir()
 				local blnFlg = false
 				while(temp_tile_list[0].has_way(wt_road))
 				{
 					if(!(world.is_coord_valid(temp_tile_list[0])) || temp_tile_list[0] == null)
 					{
-					 	temp_tile_list.remove(0)
 					 	blnFlg = true
 					 	break
-					}else{
+					}
+					if(!(road_info.check_not_cross_road(temp_tile_list[0], dir.double(temp_d))))
+					{
 						temp_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list[0], temp_d))
 					}
 				}
-				if(blnFlg)
-				{
-					if(temp_tile_list[0].has_way(wt_road)){ continue }
-				}
-				temp_d = (coord(temp_tile_list[1].x - temp_tile_list[0].x, temp_tile_list[1].y - temp_tile_list[0].y)).to_dir()
+
 				while(temp_tile_list.top().has_way(wt_road))
 				{
 					if(!(world.is_coord_valid(temp_tile_list[temp_tile_list.len()-1])) || temp_tile_list[temp_tile_list.len()-1] == null)
 					{
-					 	temp_tile_list.pop()
 					 	blnFlg = true
 					 	break
-					}else{
-						temp_tile_list[temp_tile_list.len()-1] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), temp_d))
+					}
+					if(!(road_info.check_not_cross_road(temp_tile_list.top(), dir.double(temp_d))))
+					{
+						temp_tile_list[temp_tile_list.len()-1] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), dir.backward(temp_d)))
 					}
 				}
-				if(blnFlg)
-				{
-					if(temp_tile_list.top().has_way(wt_road)){ continue }
-				}
+				if(blnFlg){  continue }
+
 				// ü˜H•~İŠJnˆÊ’uAƒz[ƒ€İ’uŠJnˆÊ’uAƒz[ƒ€İ’uI—¹ˆÊ’uAü˜H•~İI—¹ˆÊ’u‚Ì‡‚Éî•ñƒZƒbƒg
 				local new_formA = finder.coord2D_to_tile(finder.move_coord(form_sentanA, vertical_dir))
 				local new_formB = finder.coord2D_to_tile(finder.move_coord(form_sentanB, vertical_dir))
@@ -2330,15 +2352,23 @@ return err }
 	{
 		// Œšİƒ^ƒCƒ‹‚Ì‚‚³‚ğ‘µ‚¦‚é
 		local target_tile_list = finder.get_interpolate_tile(start, end)
-		// Œš•¨‚ğœ‹‚·‚é
-		map(target_tile_list, @(a) a.remove_object(pl, mo_building))
-		local rail_depot_pos_list = filter(target_tile_list, @(a) a.find_object(mo_depot_rail) != null)
-		foreach(rail_depot_pos in rail_depot_pos_list)
+		// ü˜HˆÈŠO‚ğœ‹‚·‚é
+		foreach(target_tile in target_tile_list)
 		{
-			// ÔŒÉ‚É—ñÔ‚ª‚¢‚éŠÔA‘Ò‹@
-			while(rail_depot_pos.find_object(mo_train) != null){ sleep() }
-			rail_depot_pos.remove_object(pl, mo_depot_rail)
-		}
+			if(target_tile.find_object(mo_depot_rail) != null)
+			{
+				// ÔŒÉ‚É—ñÔ‚ª‚¢‚éŠÔA‘Ò‹@
+				while(target_tile.find_object(mo_train) != null){ sleep() }
+				target_tile.remove_object(pl, mo_depot_rail)
+			}
+			if(target_tile.has_way(wt_rail)){ continue }
+			local obj_list = target_tile.get_objects()
+			foreach(obj in _step_generator(obj_list))
+			{
+				if(obj.get_type() == mo_tree){ break }
+				target_tile.remove_object(pl, obj.get_type())
+			}
+		}	
 		target_tile_list = finder.align_height(target_tile_list, start.z, pl, false)
 		target_tile_list = finder.flat_tiles(target_tile_list, pl)
 		// Œšİˆæ‚Ì‚‚³‚ğ•ÏX‚µ‚½‚Ì‚Åtileî•ñXV

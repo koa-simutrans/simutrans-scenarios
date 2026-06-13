@@ -192,6 +192,8 @@ class rail_manager_t extends manager_t
 						local tbl_form_info_list = tbl_sta_info.tbl_form_info_list
 						tbl_sta_info.new_form_end_rail <- station.get_boundary_station_pos(tbl_form_info_list[0].stop, 4)
 						start = filter(tbl_sta_info.new_form_end_rail, @(a) dir.is_single(a.get_way_dirs(wt_rail))).top()
+						// ––’[‰w‚©‚ç‰„L‚·‚é‚Ì‚Å•ªŠò‰w‚Ìî•ñÁ‹Ž
+						if(prev_halt){ prev_halt = null }
 						continue
 					}else{
 						// ‘O‚Ì‰w`“–‰w‚É‚Ü‚¾ŒÇ—§‚µ‚Ä‚¢‚é–¼Š‹ŒÕEŽY‹Æ‚ ‚ê‚Îü˜H•~Ý
@@ -232,6 +234,7 @@ class rail_manager_t extends manager_t
 							}
 							start = null
 						}
+						// ŒšÝ¬Œ÷Žž‚Ítemp_start‚Ínull
 						if(temp_start){ break }
 						prev_halt = already_station
 					}

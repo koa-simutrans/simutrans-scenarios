@@ -273,30 +273,59 @@ gui.add_message_at(our_player, ii+". "+coord_to_string(bus_stop[ii]), bus_stop[i
 
 	/***************************************
 	 * 道路付け替え処理
-	 * 引数：撤去する道路の座標リスト(tile_xのリスト)
-	 * 戻り値：
+	 * 引数：撤去する道路の座標リスト(tile_xのリスト)、道路ずらす方向(dir)、プレイヤー会社(player_x)
+	 * 戻り値：撤去失敗したタイルリスト(tile_xのリスト)
 	 ***************************************/
-	function change_road(tile_list)
+	function move_road(tile_list, d, pl)
 	{
-		local check_tile = filter(tile_list, @(a) a.has_way(wt_road))
-		if(check_tile.len() == 0){ return }
-		local bus_stop_tile_list = filter(tile_list, @(a) a.get_halt() != null)
-		local new_road_pos_list = []
-		foreach(tile in _step_generator(tile_list))
+		local rtn = []
+		local tile_list = filter(tile_list, @(a) a.has_way(wt_road))
+		if(tile_list.len() == 0){ return rtn }
+		// 道路アドオンを選択
+		local way = select_road(pl, null)
+		if(way == null){ return rtn }
+		foreach(tile in tile_list)
 		{
-			for(local d = 1; d<16; d*=2)
+			local road_dir = tile.get_way_dirs(wt_road)
+			local road_dir_list = finder.divide_dir(road_dir)
+			road_dir_list = filter(road_dir_list, @(a) a != d)
+			// 付け替え後のタイル取得
+			local new_tile = tile.get_neighbour(wt_road, d)
+			if(new_tile != null && finder.can_remove_all_objects(tile, pl))
 			{
-				local t_tile = tile.get_neighbour(wt_road, d)
-				if(t_tile == null){ continue }
-				if(is_member(t_tile, tile_list)){ continue }
-				new_road_pos_list.append(t_tile)
+				// 空き地にする
+				local obj_list = tile.get_objects()
+				foreach(obj in _step_generator(obj_list))
+				{
+					if(obj.get_type() == mo_tree){ break }
+					target_tile.remove_object(pl, obj.get_type())
+				}
+				foreach(road_d in road_dir_list)
+				{
+					command_x.build_road(pl, new_tile, new_tile.get_neighbour(wt_road, road_d), way, true, true)
+				}
+			}else{
+				rtn.append(tile)
+				continue
+			}
+			// バス停がある場合
+			if(tile.get_halt() != null)
+			{
+				build_bus_stop(pl, new_tile)
+				// 駅が公共駅の場合
+				if(tile.get_halt().get_owner().nr == 1)
+				{
+					local sta_name = tile.get_halt().get_name()
+					local cmd = command_x(tool_make_stop_public)
+					cmd.work(pl, new_tile)
+					tile.get_halt().set_name(sta_name)
+				}
+				// バスのスケジュール変更
+				local cmd = command_x(tool_stop_mover)
+				cmd.work(pl, tile, new_tile, "")
 			}
 		}
-		for(local ii = 0; ii < new_road_pos_list.len() - 1; ii++)
-		{
-			local construct_tile_list = finder.get_interpolate_tile(new_road_pos_list[ii], new_road_pos_list[ii + 1])
-			
-		}
+		return rtn
 	}
 
 	/***************************************
