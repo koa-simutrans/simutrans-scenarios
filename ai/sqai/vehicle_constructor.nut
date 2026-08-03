@@ -678,14 +678,12 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 								schedule_entries[0].wait = schedule_entries[0].wait - 88
 								local schedule = schedule_x(line.get_waytype(), schedule_entries)
 								line.change_schedule(pl, schedule)
-								gui.add_message_at(pl, " reduce waiting time schedule line " + line.get_name(), world.get_time())
 							} else if ( schedule_entries[0].wait == 88 ){
 								// remove waiting time and load
 								schedule_entries[0].wait = 0
 								schedule_entries[0].load = 0
 								local schedule = schedule_x(line.get_waytype(), schedule_entries)
 								line.change_schedule(pl, schedule)
-								gui.add_message_at(pl, " remove load/wait schedule line " + line.get_name() world.get_time())
 							} else {
 								add_road_convoy(line, pl)
 							}
@@ -971,6 +969,19 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 		local vehicle_info = convoy_list[0].get_vehicles()
 		convoy_list = filter(convoy_list, @(a) a.needs_electrification())
 		local is_electrified = convoy_list.len() != 0 ? true : false
+		// 車庫が非電化の場合、電化
+		if(is_electrified)
+		{
+			local way = depot_pos.get_way(wt_rail)
+			if(!(way.is_electrified()))
+			{
+				local tile = finder.coord2D_to_tile(schedule_entries[0])
+				local old_wayobj = tile.find_object(mo_wayobj)
+				local catenary = (old_wayobj == null) ? rail_info.select_wayobj(pl, null) : old_wayobj.get_desc()
+				if(catenary == null){ return null }
+				command_x.build_wayobj(pl, tile, depot_pos, catenary)
+			}
+		}
 		// 先頭車が機関車の場合、客車の情報を取得
 		local ii = 0
 		while(vehicle_info[ii].get_capacity() == 0){ ii++ }
@@ -1291,7 +1302,6 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 			if ( line_cnv_count[1] < line_cnv_count[2] || line_cnv_count[0] < line_cnv_count[1] )
 			{
 				remove_cnv = false
-				gui.add_message_at(pl, line.get_name() + ": not remove cnv; last month remove convoy from line ", world.get_time())
 			}
 
 			// not remove cnv first 1/3 from month
@@ -1314,7 +1324,6 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 					schedule_entries[0].wait = schedule_entries[0].wait + 88
 					local schedule = schedule_x(line.get_waytype(), schedule_entries)
 					line.change_schedule(pl, schedule)
-					gui.add_message_at(pl, " increase waiting time schedule line " + line.get_name(), world.get_time())
 				}
 			}
 		}
@@ -1525,6 +1534,7 @@ if(debug_mode){
 		if(temp_root.len() == 0)
 		{
 			temp_root = outward_root_list
+			if(temp_root.len() == 0){ return }
 		}
 		// 往路路線を停車駅数で昇順ソート
 		temp_root = sort(temp_root, @(a,b) a.len() <=> b.len())

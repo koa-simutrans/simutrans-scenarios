@@ -1501,7 +1501,8 @@ return err }
 				// 道路移設失敗してその中にバス停タイルがある場合
 				if(miss_tile_list.len() > 0)
 				{
-					
+					// TODO : 新規にバス停設置
+					return
 				}
 			}
 		}

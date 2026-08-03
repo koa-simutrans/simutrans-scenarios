@@ -24,8 +24,8 @@ class road_manager_t extends manager_t
 		if(old_way_desc != null){ current_speed = old_way_desc.get_topspeed() + 1 }
 		// 30km/h未満の道路は除外
 		way_desc_list = filter(way_desc_list, @(a) a.get_topspeed() >= current_speed)
-		// 建設費の降順でソート
-		way_desc_list = sort(way_desc_list, @(a,b) b.get_cost() <=> a.get_cost())
+		// 建設費と維持費の合算の降順でソート
+		way_desc_list = sort(way_desc_list, @(a,b) b.get_cost() + b.get_maintenance() <=> a.get_cost() + a.get_maintenance())
 		// 月粗利益取得
 		local profit = pl.get_profit()
 		// 収入に応じて道路のグレードが上がる
@@ -291,14 +291,17 @@ gui.add_message_at(our_player, ii+". "+coord_to_string(bus_stop[ii]), bus_stop[i
 			road_dir_list = filter(road_dir_list, @(a) a != d)
 			// 付け替え後のタイル取得
 			local new_tile = tile.get_neighbour(wt_road, d)
-			if(new_tile != null && finder.can_remove_all_objects(tile, pl))
+			if(new_tile != null && finder.can_remove_all_objects(new_tile, pl))
 			{
-				// 空き地にする
-				local obj_list = tile.get_objects()
-				foreach(obj in _step_generator(obj_list))
+				if(!(new_tile.has_way(wt_road)))
 				{
-					if(obj.get_type() == mo_tree){ break }
-					target_tile.remove_object(pl, obj.get_type())
+					// 空き地にする
+					local obj_list = new_tile.get_objects()
+					foreach(obj in _step_generator(obj_list))
+					{
+						if(obj.get_type() == mo_tree){ break }
+						target_tile.remove_object(pl, obj.get_type())
+					}
 				}
 				foreach(road_d in road_dir_list)
 				{
@@ -324,6 +327,9 @@ gui.add_message_at(our_player, ii+". "+coord_to_string(bus_stop[ii]), bus_stop[i
 				local cmd = command_x(tool_stop_mover)
 				cmd.work(pl, tile, new_tile, "")
 			}
+			// 既存道路撤去
+			while(tile.find_object(mo_car)){ sleep() }
+			tile.remove_object(pl, mo_way)
 		}
 		return rtn
 	}

@@ -395,8 +395,6 @@ class astar_builder extends astar
 		local back = dir.backward(cnode.dir)
 		// 探索開始直後のcnodeはdirにゴールまでの距離を格納している
 		if(cnode.dir > dir.all){ back = dir.none }
-		
-		local neo_heap_flg = false
 
 		for(local d = 1; d<16; d*=2) {
 
@@ -540,7 +538,12 @@ class astar_builder extends astar
 					{
 						if(check_slope_dir(to.get_slope(), d))
 						{
-							if(abs(from.z - to.z) <= 1){ flat_field_flg = 2 }
+							if(to.get_slope() == slope.flat)
+							{
+								flat_field_flg = 0
+							}else{
+								if(abs(from.z - to.z) <= 1){ flat_field_flg = 2 }
+							}
 						}else{
 							// 始点と終点が共に平坦でない場合、始点のflat_field_flgが
 							// 2でないなら終点のノードを開かない
@@ -679,7 +682,7 @@ class astar_builder extends astar
 			local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
 			local is_tunnel_1 = is_tunnel_0
 
-/*if(way != null && way.get_waytype() == wt_rail){
+/*if(way != null){
 for (local i = 1; i<route.len(); i++) {
   local aaa=tile_x(route[i].x, route[i].y, route[i].z)
   gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
@@ -713,7 +716,8 @@ for (local i = 1; i<route.len(); i++) {
 								jj++
 							}
 
-							smoose_tile_edge(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_list, tile_x(route[jj].x, route[jj].y, route[jj].z))
+							terraform(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_list, tile_x(route[jj].x, route[jj].y, route[jj].z))
+
 							// 整地に伴い高さを更新
 							for(local kk = i; kk < jj; kk++)
 							{
@@ -743,8 +747,13 @@ for (local i = 1; i<route.len(); i++) {
 							}
 						}
 						if (err) {
-							gui.add_message_at(our_player, "aaaFailed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
-							remove_wayline(route, (i - 1), way.get_waytype())
+							if(route[i].flag == 12) {
+								// clear err because build way after terraforming
+								err = null
+							}else{
+								gui.add_message_at(our_player, "aaaFailed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+								remove_wayline(route, (i - 1), way.get_waytype())
+							}
 						}
 
 					} else {
@@ -778,11 +787,14 @@ for (local i = 1; i<route.len(); i++) {
 							}
 						}
 						if (err) {
-							gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord3d_to_string(route[i-1]) + " to " + coord3d_to_string(route[i]) +"\n" + err, route[i])
-							// remove way
-							// route[0] to route[i]
-							//err = command_x.remove_way(our_player, route[0], route[i])
-							remove_wayline(route, (i - 1), way.get_waytype())
+							if(route[i].flag == 12) {
+								// clear err because build way after terraforming
+								err = null
+							}else{
+								gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord3d_to_string(route[i-1]) + " to " + coord3d_to_string(route[i]) +"\n" + err, route[i])
+								// remove way
+								remove_wayline(route, (i - 1), way.get_waytype())
+							}
 						}
 					}
 				}
@@ -920,7 +932,7 @@ function check_double_slope(target)
  * 引数：整地開始直前の座標(tile_x)、flag=2のタイルリスト(tile_xのリスト)、整地終了の隣の座標(tile_x)
  * 備考：第二引数は経路探索した経路が順番に格納されていること
  ***************************************/
-function smoose_tile_edge(from, tile_list, end)
+function terraform(from, tile_list, end)
 {
 // tile.get_slope()で取得したスロープは下り方向の方角を持つ slope.to_dir()で取得した方向はスロープ登り方向を返す
 	local f_slope = from.get_slope()

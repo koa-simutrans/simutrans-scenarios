@@ -24,8 +24,8 @@ class rail_manager_t extends manager_t
 		if(old_way_desc != null){ current_speed = old_way_desc.get_topspeed() }
 		// 30km/h–¢–‚Ìü˜H‚ÍœŠO
 		way_desc_list = filter(way_desc_list, @(a) a.get_topspeed() >= current_speed)
-		// Œšİ”ï‚Ì~‡‚Åƒ\[ƒg
-		way_desc_list = sort(way_desc_list, @(a,b) b.get_cost() <=> a.get_cost())
+		// Œšİ”ï‚ÆˆÛ”ï‚Ì‡Z‚Ì~‡‚Åƒ\[ƒg
+		way_desc_list = sort(way_desc_list, @(a,b) b.get_cost() + b.get_maintenance() <=> a.get_cost() + a.get_maintenance())
 		// Œ‘e—˜‰væ“¾
 		local profit = pl.get_profit()
 		// û“ü‚É‰‚¶‚Äü˜H‚ÌƒOƒŒ[ƒh‚ªã‚ª‚é
@@ -54,8 +54,8 @@ class rail_manager_t extends manager_t
 		if(old_wayobj_desc != null){ current_speed = old_wayobj_desc.get_topspeed() }
 		// 30km/h–¢–‚Ì‰Ëü‚ÍœŠO
 		wayobj_desc_list = filter(wayobj_desc_list, @(a) a.get_topspeed() >= current_speed)
-		// Œšİ”ï‚Ì~‡‚Åƒ\[ƒg
-		wayobj_desc_list = sort(wayobj_desc_list, @(a,b) b.get_cost() <=> a.get_cost())
+		// Œšİ”ï‚ÆˆÛ”ï‚Ì‡Z‚Ì~‡‚Åƒ\[ƒg
+		wayobj_desc_list = sort(wayobj_desc_list, @(a,b) b.get_cost()+b.get_maintenance() <=> a.get_cost()+a.get_maintenance())
 		// Œ‘e—˜‰væ“¾
 		local profit = pl.get_profit()
 		// û“ü‚É‰‚¶‚Ä‰Ëü‚ÌƒOƒŒ[ƒh‚ªã‚ª‚é
@@ -334,6 +334,7 @@ class rail_manager_t extends manager_t
 gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:["+coord_to_string(sta_info_list[jj].c_out)+"]",sta_info_list[jj].sta_tile_list.top())
 					// ‰wİ’u—\’è’n‚ğ®’n
 					local target_tile_list = finder.get_interpolate_tile(sta_info_list[jj].c_in, sta_info_list[jj].c_out)
+					target_tile_list = finder.align_height(target_tile_list, target_tile_list[0].z, pl, false)
 					finder.flat_tiles(target_tile_list, pl)
 					// ‰wİ’u—\’è’n‚Ìz’l‚ğXV
 					sta_info_list[jj].sta_tile_list = map(sta_info_list[jj].sta_tile_list, @(a) finder.coord2D_to_tile(coord(a.x, a.y)))
@@ -986,8 +987,6 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 				}else{
 					continue
 				}
-			}else{
-				idx = 0
 			}
 
 			// ü˜H•~İI—¹’n“_
@@ -1001,6 +1000,7 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 			{
 				// ‰wİ’u—\’è’n‚ğ®’n
 				local target_tile_list = finder.get_interpolate_tile(sta_info_list[kk].c_in, sta_info_list[kk].c_out)
+				target_tile_list = finder.align_height(target_tile_list, target_tile_list[0].z, pl, false)
 				finder.flat_tiles(target_tile_list, pl)
 				// ‰wİ’u—\’è’n‚Ìz’l‚ğXV
 				local sta_tile_list = map(sta_info_list[kk].sta_tile_list, @(a) finder.coord2D_to_tile(coord(a.x, a.y)))
@@ -1081,6 +1081,7 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 			}
 			rtn.add_list.append(target_via_list[idx])
 			jj++
+			idx = 0
 		}
 		
 		if(compare_coord(rtn.tile, start)){ return }  /* ü˜H‚ğˆêØ•~İ‚µ‚È‚©‚Á‚½‚çnull‚ğ•Ô‚· */
