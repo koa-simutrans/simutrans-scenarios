@@ -1707,13 +1707,13 @@ return err }
 					if(t_idx == -1){ t_idx = schedule_entries.len() - 1 }
 					if(is_member(tbl_expand_info.expand_dir, [dir.north, dir.south]))
 					{
-						if(tbl_expand_info.expand_dir == coord(0,schedule_entries[target].y - schedule_entries[t_idx].y).to_dir())
+						if(tbl_expand_info.expand_dir == coord(0,schedule_entries[t_idx].y - schedule_entries[target].y).to_dir())
 						{
 							local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
 							schedule_entries[target] = temp_stop[0].stop
 						}
 					}else{
-						if(tbl_expand_info.expand_dir == coord(schedule_entries[target].x - schedule_entries[t_idx].x,0).to_dir())
+						if(tbl_expand_info.expand_dir == coord(schedule_entries[t_idx].x - schedule_entries[target].x,0).to_dir())
 						{
 							local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
 							schedule_entries[target] = temp_stop[0].stop
