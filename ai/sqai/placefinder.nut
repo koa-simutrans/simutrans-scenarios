@@ -13,7 +13,7 @@ class finder {
 		if(pos == null){ return }
 		local ground = square_x(pos.x, pos.y)
 		local tile_info = ground.get_ground_tile()
-		return coord3d(tile_info.x, tile_info.y, tile_info.z)
+		return world.is_coord_valid(pos) ? coord3d(tile_info.x, tile_info.y, tile_info.z) : null
 	}
 
 	/*********************************************
@@ -24,7 +24,7 @@ class finder {
 	{
 		if(pos == null){ return }
 		local ground = square_x(pos.x, pos.y)
-		return ground.get_ground_tile()
+		return world.is_coord_valid(pos) ? ground.get_ground_tile() : null
 	}
 
 	/*********************************************

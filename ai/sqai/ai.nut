@@ -454,9 +454,9 @@ gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
 local aaa = finder.coord2D_to_tile(coord(498,451))
-local target = finder.coord2D_to_tile(coord(499,451))
-local bbb=station.expand_straight_rail(our_player, target, aaa)
-gui.add_message_at(our_player, ""+coord_to_string(bbb), bbb)
+local target = finder.coord2D_to_tile(coord(540,460))
+local bbb=station.set_passing_each_other(our_player, target.get_halt())
+gui.add_message_at(our_player, ""+bbb, world.get_time())
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
@@ -762,6 +762,9 @@ if(debug_mode)
 		local road_info = road_manager_t()
 		foreach(city in city_list_x())
 		{
+			// 自社のバスターミナルがない場合は、整備しない
+			local terminal = finder.get_bus_terminal(city, our_player)
+			if(!(terminal)){ continue }
 			// 他社のバス停がある場合は、整備しない
 			local com_halt_list = []
 			local com_idx = 0

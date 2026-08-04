@@ -513,6 +513,10 @@ class vehicle_constructor_t extends node_t
 			bus_stop_list = filter(bus_stop_list, @(a) !(is_member(a, t_root_list)))
 			// 基準バス停からマンハッタン距離である程度近いバス停を取得
 			local temp_nearest_stop = filter(bus_stop_list, @(a) abs(a.x-target.x)+abs(a.y-target.y) <= 2*(2*settings.get_station_coverage()+1))
+			if(t_root_list.len() > 0)
+			{
+				temp_nearest_stop = filter(temp_nearest_stop, @(a) !(finder.is_same_halt(a.get_halt(), t_root_list.top().get_halt())))
+			}
 			local map_distance = world.get_size().x + world.get_size().y
 			temp_nearest_stop = get_nearest(temp_nearest_stop, map_distance, @(a) get_trace_tile(a, target, wt_road, true))
 			// 最も近いバス停が複数ある場合、終点に近いバス停を選択
@@ -1988,7 +1992,7 @@ if(debug_mode){
 				local station = station_manager_t()
 				foreach(schedule in schedule_entries)
 				{
-					local tile_list = station.get_track_list(schedule)
+					local tile_list = station.get_track_list(tile_x(schedule.x, schedule.y, schedule.z))
 					local tool = command_x(tool_clear_reservation)
 					foreach(tile in tile_list)
 					{
