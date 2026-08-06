@@ -1965,36 +1965,54 @@ if(debug_mode){
 	{
 		// デッドロックしている車両探索
 		local dl_convoy_list = filter(world.get_convoy_list(), @(a) a.get_owner().nr == pl.nr)
-		dl_convoy_list = filter(dl_convoy_list, @(a) a.get_distance_traveled_total() > 1 && a.get_traveled_distance().len() > 1 && a.get_traveled_distance()[0] == 0 && a.get_traveled_distance()[1] == 0)
+		dl_convoy_list = filter(dl_convoy_list, @(a) a.get_traveled_distance().len() > 1 && a.get_traveled_distance()[0] == 0 && a.get_traveled_distance()[1] == 0)
 		// dl_convoy_list = filter(dl_convoy_list, @(a) !(a.is_loading) && !(a.is_waiting)) // デッドロックしてる車両は常にis_loading=is_waiting=trueなので意味なし
+gui.add_message_at(pl,"dead_lock1:"+dl_convoy_list.len(),world.get_time())
 		local line_list = []
 		foreach(convoy in dl_convoy_list)
 		{
-			local temp_line = convoy.get_line()
-			if(!(is_member(temp_line.get_name(), map(line_list, @(a) a.get_name())))){ line_list.append(temp_line) }
-		}
+			// 現在位置から次の駅までのタイル取得
+			local from = convoy.get_pos()
+			local schedule = convoy.get_schedule()
+			local to = schedule.entries[schedule.current]
+			if(from.x == to.x && from.y == to.y){ return }
+			local asf = astar_route_finder(convoy.get_waytype())
+			local res = asf.search_route([from], [to])
+			if("err" in res){ return }
+			local tile_list = map(res.routes, @(a) finder.coord2D_to_tile(a))
 
-		local road_info = road_manager_t()
-		local rail_info = rail_manager_t()
-		foreach(line in line_list)
-		{
-			switch(line.get_waytype())
+			switch(convoy.get_waytype())
 			{
 				case wt_road:
-				local schedule_entries = line.get_schedule().entries
-				local depot_pos = road_info.search_bus_depot(schedule_entries[0], pl)
-				local depot = depot_x(depot_pos.x, depot_pos.y, depot_pos.z)
-				update_convoy_in_line(line, depot, wt_road, pl, true)
+				local road_info = road_manager_t()
+				local flg = true
+				// 次の停留所までのcitycarを消す
+				foreach(tile in tile_list)
+				{
+					if(tile.find_object(mo_city_car))
+					{
+						tile.remove_object(pl, mo_city_car)
+						flg = false
+					}
+				}
+				if(flg)
+				{
+					local line = convoy.get_line()
+					if(!(is_member(line.get_name(), map(line_list, @(a) a.get_name()))))
+					{
+						local depot_pos = road_info.search_bus_depot(schedule.entries[0], pl)
+						local depot = depot_x(depot_pos.x, depot_pos.y, depot_pos.z)
+						update_convoy_in_line(line, depot, wt_road, pl, true)
+						line_list.append(line)
+					}
+				}
 				break
 				
 				case wt_rail:
-				local schedule_entries = line.get_schedule().entries
-				local station = station_manager_t()
-				foreach(schedule in schedule_entries)
+				local tool = command_x(tool_clear_reservation)
+				foreach(tile in tile_list)
 				{
-					local tile_list = station.get_track_list(tile_x(schedule.x, schedule.y, schedule.z))
-					local tool = command_x(tool_clear_reservation)
-					foreach(tile in tile_list)
+					if(!(tile.find_object(mo_train)))
 					{
 						tool.work(pl, tile)
 					}

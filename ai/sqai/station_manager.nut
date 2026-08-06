@@ -1622,8 +1622,10 @@ return err }
 		if(be_electrified)
 		{
 			local catenary = rail_tile_list[0].find_object(mo_wayobj).get_desc()
+			if(!(dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))){ temp_tile = tbl_expand_info.expand_info.top() }
 			command_x.build_wayobj(pl, temp_tile, tbl_expand_info.expand_tile, catenary)
 			temp_tile = finder.coord2D_to_tile(finder.move_coord(tbl_expand_info.expand_info[0], dir.backward(tbl_expand_info.expand_dir)))
+			if(!(dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))){ temp_tile = tbl_expand_info.expand_info[0] }
 			command_x.build_wayobj(pl, temp_tile, tbl_expand_info.expand_tile, catenary)
 		}
 
@@ -1701,22 +1703,26 @@ return err }
 				}
 			}else{
 				// スイッチバック駅の場合
-				foreach(target in target_sche_idx_list)
+				// 始終点以外、または複数路線が利用している駅のみ着発番線を変更
+				if(target_sche_idx_list.len() > 1 || line_list.len() > 1)
 				{
-					local t_idx = target - 1
-					if(t_idx == -1){ t_idx = schedule_entries.len() - 1 }
-					if(is_member(tbl_expand_info.expand_dir, [dir.north, dir.south]))
+					foreach(target in target_sche_idx_list)
 					{
-						if(tbl_expand_info.expand_dir == coord(0,schedule_entries[t_idx].y - schedule_entries[target].y).to_dir())
+						local t_idx = target - 1
+						if(t_idx == -1){ t_idx = schedule_entries.len() - 1 }
+						if(is_member(tbl_expand_info.expand_dir, [dir.north, dir.south]))
 						{
-							local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
-							schedule_entries[target] = temp_stop[0].stop
-						}
-					}else{
-						if(tbl_expand_info.expand_dir == coord(schedule_entries[t_idx].x - schedule_entries[target].x,0).to_dir())
-						{
-							local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
-							schedule_entries[target] = temp_stop[0].stop
+							if(tbl_expand_info.expand_dir == coord(0,schedule_entries[t_idx].y - schedule_entries[target].y).to_dir())
+							{
+								local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
+								schedule_entries[target] = temp_stop[0].stop
+							}
+						}else{
+							if(tbl_expand_info.expand_dir == coord(schedule_entries[t_idx].x - schedule_entries[target].x,0).to_dir())
+							{
+								local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
+								schedule_entries[target] = temp_stop[0].stop
+							}
 						}
 					}
 				}
