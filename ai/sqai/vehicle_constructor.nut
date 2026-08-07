@@ -1967,7 +1967,6 @@ if(debug_mode){
 		local dl_convoy_list = filter(world.get_convoy_list(), @(a) a.get_owner().nr == pl.nr)
 		dl_convoy_list = filter(dl_convoy_list, @(a) a.get_traveled_distance().len() > 1 && a.get_traveled_distance()[0] == 0 && a.get_traveled_distance()[1] == 0)
 		// dl_convoy_list = filter(dl_convoy_list, @(a) !(a.is_loading) && !(a.is_waiting)) // デッドロックしてる車両は常にis_loading=is_waiting=trueなので意味なし
-gui.add_message_at(pl,"dead_lock1:"+dl_convoy_list.len(),world.get_time())
 		local line_list = []
 		foreach(convoy in dl_convoy_list)
 		{

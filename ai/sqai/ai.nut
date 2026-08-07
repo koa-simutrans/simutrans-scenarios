@@ -693,39 +693,49 @@ if(debug_mode)
 			if(new_root == null || temp_new_root.len() != new_root.len())
 			{
 				// 鉄道建設できなかった区間はバス代行
-				local road_info = road_manager_t()
-				if(new_root == null)
+				local adpot_list = []
+				local idx = 1
+				if(new_root != null)
 				{
-					// 鉄道が通っている町は並行しないように整理
-					for(local ii = 1; ii < temp_new_root.len(); ii++)
+					adpot_list.append(new_root.len()-1)
+					idx = adpot_list[0]
+				}
+
+				new_root = temp_new_root
+				// 鉄道が通っている町は並行しないように整理
+				for(local ii = idx; ii < temp_new_root.len(); ii++)
+				{
+					local station_bus_stop =finder.get_bus_terminal(city_x(city_info[temp_new_root[ii]].townhall.x, city_info[temp_new_root[ii]].townhall.y), our_player)
+					if(station_bus_stop)
 					{
-						local break_flg = false
-						local station_bus_stop =finder.get_bus_terminal(city_x(city_info[temp_new_root[ii]].townhall.x, city_info[temp_new_root[ii]].townhall.y), our_player)
-						if(station_bus_stop)
+						local temp_list = filter(station_bus_stop.get_halt().get_line_list(), @(a) a.get_waytype() == wt_rail)
+						if(temp_list.len() == 0 && adpot_list.len() % 2 == 0)
 						{
-							local temp_list = filter(station_bus_stop.get_halt().get_line_list(), @(a) a.get_waytype() == wt_rail)
-							if(temp_list.len() == 0)
-							{
-								break_flg = true
-							}
-						}else{
-							break_flg = true
+							adpot_list.append(ii-1)
 						}
-						if(break_flg)
+						if(temp_list.len() > 0 && adpot_list.len() % 2 != 0)
 						{
-							temp_new_root = temp_new_root.slice(ii-1)
-							break
+							adpot_list.append(ii+1)
 						}
-					}
-					temp_new_root = road_info.build_bus_root(our_player, temp_new_root)
-					new_root = temp_new_root
-				}else{
-					temp_new_root = road_info.build_bus_root(our_player, temp_new_root.slice(new_root.len()-1))
-					if(temp_new_root != null)
-					{
-						new_root = combine(new_root, temp_new_root.slice(1))
+					}else{
+						if(adpot_list.len() % 2 == 0){ adpot_list.append(ii-1) }
 					}
 				}
+				switch(adpot_list.len())
+				{
+					case 0:
+						
+					break
+					case 1:
+						temp_new_root = temp_new_root.slice(adpot_list[0])
+					break
+					default:
+						temp_new_root = temp_new_root.slice(adpot_list[0], adpot_list.top())
+					break
+				}
+				
+				local road_info = road_manager_t()
+				road_info.build_bus_root(our_player, temp_new_root)
 			}
 //		}else{
 //			// バス路線建設
