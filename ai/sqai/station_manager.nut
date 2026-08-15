@@ -1665,7 +1665,7 @@ return err }
 						command_x.build_sign_at(pl, sig_tile, sign_desc[0])
 					}catch(e)
 					{
-						gui.add_message_at(pl,"["+coord_to_string(sig_tile)+"],dir:"+dir.backward(d),sig_tile)
+						gui.add_message_at(pl,"set_passing_each_other: failed set signal ["+coord_to_string(sig_tile)+"],dir:"+dir.backward(d),sig_tile)
 					}
 					}
 				}
@@ -1806,22 +1806,30 @@ return err }
 					if(!(road_info.check_not_cross_road(temp_tile_list[0], dir.double(temp_d))))
 					{
 						temp_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list[0], temp_d))
+					}else{
+						blnFlg = true
+						break
 					}
 				}
-
-				while(temp_tile_list.top().has_way(wt_road))
+				if(!(blnFlg))
 				{
-					if(!(world.is_coord_valid(temp_tile_list[temp_tile_list.len()-1])) || temp_tile_list[temp_tile_list.len()-1] == null)
+					while(temp_tile_list.top().has_way(wt_road))
 					{
-					 	blnFlg = true
-					 	break
-					}
-					if(!(road_info.check_not_cross_road(temp_tile_list.top(), dir.double(temp_d))))
-					{
-						temp_tile_list[temp_tile_list.len()-1] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), dir.backward(temp_d)))
+						if(!(world.is_coord_valid(temp_tile_list[temp_tile_list.len()-1])) || temp_tile_list[temp_tile_list.len()-1] == null)
+						{
+						 	blnFlg = true
+						 	break
+						}
+						if(!(road_info.check_not_cross_road(temp_tile_list.top(), dir.double(temp_d))))
+						{
+							temp_tile_list[temp_tile_list.len()-1] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), dir.backward(temp_d)))
+						}else{
+							blnFlg = true
+						 	break
+						}
 					}
 				}
-				if(blnFlg){  continue }
+				if(blnFlg){ continue }
 
 				// 線路敷設開始位置、ホーム設置開始位置、ホーム設置終了位置、線路敷設終了位置の順に情報セット
 				local new_formA = finder.coord2D_to_tile(finder.move_coord(form_sentanA, vertical_dir))
@@ -2408,7 +2416,8 @@ return err }
 				}
 				err = command_x.build_bridge(pl, start, end, bridge_list[0])
 			}
-			if(err){ return }
+			if(err){ gui.add_message_at(pl,"expand_straight_rail err:["+coord_to_string(start)+"]to["+coord_to_string(end)+"]",start)
+			return }
 		}
 		return end
 	}

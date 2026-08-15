@@ -1029,23 +1029,14 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 		local schedule_entries = line.get_schedule().entries
 		local peo_sta = []            /* 行き違い設備のある駅indexリスト */
 		local station = station_manager_t()
-		for(local ii = 0; ii < schedule_entries.len() / 2; ii++)
+		for(local ii = 1; ii < schedule_entries.len() / 2; ii++)
 		{
 			local halt = finder.coord2D_to_tile(schedule_entries[ii]).get_halt()
 			local tbl_sta_info_list = station.get_station_info(halt, 2, is_electrified)
 			local tbl_form_info_list = tbl_sta_info_list.tbl_form_info_list
 			if(tbl_form_info_list.len() < 2){ continue }
 			local temp_list = filter(tbl_form_info_list, @(a) dir.is_single(a.dir))
-			if(temp_list.len() == 0){ continue }
-			local a_dir = temp_list[0].dir
-			for(local jj = 1; jj < temp_list.len(); jj++)
-			{
-				if(temp_list[jj].dir == dir.backward(a_dir))
-				{
-					peo_sta.append(ii)
-					break
-				}
-			}
+			if(temp_list.len() != 0){ peo_sta.append(ii) }
 		}
 		
 		for(local ii = peo_sta.len()-1; ii >= 0; ii--)
@@ -1611,6 +1602,11 @@ if(debug_mode){
 		for(local ii = outward_root.len() - 1; ii > 0; ii--)
 		{
 			local info = outward_root[ii].info.tbl_form_info_list
+			// 公共駅の場合、他社線ホームは除外
+			if(outward_root[ii].halt.get_owner() == 1)
+			{
+				info = filter(info, @(a) permit_use_form(a.stop, pl.nr))
+			}
 			// 往路と逆向きに発着できる番線を検索
 			info = filter(info, @(a) is_member(a.dir, [dir.backward(outward_root[ii].dir), dir.backward(outward_root[ii].dir)+outward_root[ii].dir]))
 			// ホームを使用している路線数が最小のホームを選択
@@ -1653,6 +1649,13 @@ if(debug_mode){
 		{
 			// 新路線に統合
 			merge_line_list[0].change_schedule(pl, schedule)
+			if(merge_line_list[0].get_convoy_list()[0].needs_electrification())
+			{
+				local rail_info = rail_manager_t()
+				rail_info.electrify_line(merge_line_list[0])
+			}
+			// ホーム長さ調整
+			extend_form_to_convoy_length(merge_line_list[0])
 		}else{
 			// 路線作成
 			pl.create_line(wt_rail)
@@ -1783,6 +1786,19 @@ if(debug_mode){
 	}
 
 	/***************************************
+	 * そのプラットホームは入線可能か
+	 * 引数：ホームのタイル(tile_x)、プレイヤー会社Index(int)
+	 * 戻り値：入線可能(true)(boolean)
+	 ***************************************/
+	function permit_use_form(tile, pl_nr)
+	{
+		local station = station_manager_t()
+		local boundary_list = station.get_boundary_station_pos(tile, 2)
+		local tile_owner_list = map(boundary_list, @(a) a.get_way(wt_rail).get_owner().nr)
+		return !(is_member(false, map(tile_owner_list, @(a) is_member(a, [1, pl_nr]))))
+	}
+
+	/***************************************
 	 * 電化必要な鉄道路線か
 	 * 引数：路線(line_x)
 	 * 戻り値：電化必要(true)(boolean)
@@ -1799,6 +1815,39 @@ if(debug_mode){
 			}
 		}
 		return rtn
+	}
+
+	/***************************************
+	 * 鉄道路線に割り当てた編成長さにホーム長さを調整
+	 * 引数：路線(line_x)
+	 ***************************************/
+	function extend_form_to_convoy_length(line)
+	{
+		local convoy_list = line.get_convoy_list()
+		if(convoy_list.get_count() == 0){ return }
+		convoy_list = sort(convoy_list, @(a,b) b.get_tile_length() <=> a.get_tile_length())
+		local convoy = convoy_list[0]
+		
+		// 営業中の途中駅で棒線駅があれば、行き違い設備を設ける
+		local station = station_manager_t()
+		local schedule_entry_list = line.get_schedule().entries
+		local sche_len = schedule_entry_list.len()
+		local pl = line.get_owner()
+		for(local jj = 1; jj< sche_len/2; jj++)
+		{
+			local halt = finder.coord2D_to_tile(schedule_entry_list[jj]).get_halt()
+			local temp_line_list = halt.get_line_list()
+			temp_line_list = filter(temp_line_list, @(a) a.get_waytype() == wt_rail)
+			if(temp_line_list.len() > 1)
+			{
+				station.set_passing_each_other(pl, halt)
+			}
+		}
+		// ホーム長さ調整
+		foreach(schedule in schedule_entry_list)
+		{
+			station.extend_form(pl, schedule.get_halt(pl), convoy.get_tile_length(), [schedule])
+		}
 	}
 
 	/***************************************

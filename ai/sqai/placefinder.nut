@@ -375,8 +375,8 @@ class finder {
 	 *********************************************/
 	static function check_busstop_in_city(city, pl, out_area_flg)
 	{
-		//try
-		//{
+//		try
+//		{
 			// 市域内に自社のバス停があるかチェック
 			local bus_stop = reseach_sta_in_city(city, pl.nr)
 			// 市域内に公共駅のバス停があるかチェック
@@ -428,7 +428,7 @@ class finder {
 				}
 			}
 			return bus_stop
-		/*}catch(e)
+/*		}catch(e)
 		{
 			local bus_stop = []
 			return bus_stop

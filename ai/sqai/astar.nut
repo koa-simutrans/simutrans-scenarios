@@ -476,6 +476,11 @@ class astar_builder extends astar
 						case wt_road:
 						if (to.has_way(wt_road)) {
 							ground_on_flg = true
+							if (to.get_halt()) {
+								if(!(is_member(d ,finder.divide_dir(dir.double(to.get_way_dirs(wt_road)))))) {
+									continue
+								}
+							}
 						}else{
 							move += 8
 						}
@@ -682,11 +687,11 @@ class astar_builder extends astar
 			local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
 			local is_tunnel_1 = is_tunnel_0
 
-/*if(way != null){
+if(way != null && is_member(2, map(route, @(a) a.flag))){
 for (local i = 1; i<route.len(); i++) {
   local aaa=tile_x(route[i].x, route[i].y, route[i].z)
   gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
-}}*/
+}}
 			for (local i = 1; i<route.len(); i++) {
 				// remove any fields on our routes (only start & end currently)
 

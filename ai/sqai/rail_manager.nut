@@ -213,6 +213,7 @@ class rail_manager_t extends manager_t
 								}
 								local tbl_update_info = build_rail_junction(already_station, temp_start.tile, pl)
 								if(tbl_update_info == null){ break }
+gui.add_message_at(pl,"aaa"+already_station.get_name()+",["+coord_to_string(temp_start.tile)+"],["+coord_to_string(tbl_update_info.exit)+"]",temp_start.tile)
 								local temp_end = set_rail_between_station(temp_start.tile, tbl_update_info.exit, pl)
 								// Œšİ¸”s‚µ‚½‚È‚ç“P‹
 								if(temp_end)
@@ -234,9 +235,9 @@ class rail_manager_t extends manager_t
 							}
 							start = null
 						}
+						prev_halt = already_station
 						// Œšİ¬Œ÷‚Ítemp_start‚Ínull
 						if(temp_start){ break }
-						prev_halt = already_station
 					}
 					if("new_form_end_rail" in tbl_sta_info)
 					{
@@ -1017,6 +1018,7 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 				local rtn_dir = rtn.tile.get_way_dirs(wt_rail)
 				persistent.setting_rail <- [restart, end]
 				sta_info = sta_info_list[kk]
+gui.add_message_at(pl,"ind:"+kk+",["+coord_to_string(end)+"],["+coord_to_string(restart)+"]",end)
 				rtn.tile = set_rail_between_station(rtn.tile, end, pl)
 				if(rtn.tile)
 				{
@@ -1382,7 +1384,7 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 					idx_list.append(schedule_entries.len())
 				}else{
 					local temp = get_idx_in_member(schedule_entries.len()/2, idx_list)
-					if(temp.len() != 0){ idx_list.insert(temp, schedule_entries.len()/2) }
+					if(temp.len() != 0){ idx_list.insert(temp.top(), schedule_entries.len()/2) }
 				}
 			}
 			// C³‚µ‚Ä‚àidx_list‚ªŠï”ŒÂ‚È‚ç‚»‚Ì˜Hü‚Í•s“KØ

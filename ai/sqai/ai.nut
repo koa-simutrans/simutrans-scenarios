@@ -453,10 +453,14 @@ function step()
 gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
-local aaa = finder.coord2D_to_tile(coord(550,450))
-local target = finder.coord2D_to_tile(coord(499,500))
-local bbb=station.update_junction_station(our_player, target.get_halt(), aaa)
-gui.add_message_at(our_player, "["+coord_to_string(bbb.enter)+"]["+coord_to_string(bbb.exit)+"]",bbb.exit)
+local vehicle = vehicle_constructor_t()
+local aaa = finder.coord2D_to_tile(coord(333,69))
+local target = finder.coord2D_to_tile(coord(450,394))
+local bbb=vehicle.permit_use_form(aaa, our_player_nr)
+gui.add_message_at(our_player, ""+bbb,world.get_time())
+aaa = finder.coord2D_to_tile(coord(336,70))
+bbb=vehicle.permit_use_form(aaa, our_player_nr)
+gui.add_message_at(our_player, ""+bbb,world.get_time())
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
@@ -934,24 +938,8 @@ if(debug_mode)
 				}else{
 					// スケジュール設定
 					convoy.set_line(our_player, line_list[ii])
-					// 営業中の途中駅で棒線駅があれば、行き違い設備を設ける
-					local station = station_manager_t()
-					local sche_len = schedule_entry_list.len()
-					for(local jj = 1; jj< sche_len/2; jj++)
-					{
-						local halt = finder.coord2D_to_tile(schedule_entry_list[jj]).get_halt()
-						local temp_line_list = halt.get_line_list()
-						temp_line_list = filter(temp_line_list, @(a) a.get_waytype() == wt_rail)
-						if(temp_line_list.len() > 1)
-						{
-							station.set_passing_each_other(our_player, halt)
-						}
-					}
 					// ホーム長さ調整
-					foreach(schedule in schedule_entry_list)
-					{
-						station.extend_form(our_player, schedule.get_halt(our_player), convoy.get_tile_length(), [schedule])
-					}
+					vehicle.extend_form_to_convoy_length(line_list[ii])
 					
 					// 運行開始
 					depot.start_convoy(our_player, convoy)
