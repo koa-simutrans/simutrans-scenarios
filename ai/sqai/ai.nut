@@ -454,13 +454,13 @@ gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
-local aaa = finder.coord2D_to_tile(coord(333,69))
+local aaa = finder.coord2D_to_tile(coord(359,38))
 local target = finder.coord2D_to_tile(coord(450,394))
-local bbb=vehicle.permit_use_form(aaa, our_player_nr)
-gui.add_message_at(our_player, ""+bbb,world.get_time())
-aaa = finder.coord2D_to_tile(coord(336,70))
-bbb=vehicle.permit_use_form(aaa, our_player_nr)
-gui.add_message_at(our_player, ""+bbb,world.get_time())
+local bbb=station.get_station_info(aaa.get_halt(), 2, false)
+local ccc=bbb.tbl_form_info_list
+foreach(ado in ccc){
+gui.add_message_at(our_player, "["+coord_to_string(ado.stop)+"],dir:"+ado.dir,ado.stop)
+}
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
@@ -781,7 +781,7 @@ if(debug_mode)
 			if(!(terminal)){ continue }
 			// 他社のバス停がある場合は、整備しない
 			local com_halt_list = []
-			local com_idx = 0
+			local com_idx = -1
 			// 0はプレイヤー、1は公共
 			for(local ii = 2; ii < city_player_nr; ii++)
 			{
@@ -795,7 +795,7 @@ if(debug_mode)
 			}
 
 			// バス停設置
-			if(com_idx == 0)
+			if(com_idx == -1)
 			{
 				local bus_stop_list = finder.get_road_for_city_bus(city, our_player)
 				if(bus_stop_list.len() != 0)
@@ -810,7 +810,7 @@ if(debug_mode)
 					}
 				}
 			}else{
-				local terminal = finder.get_bus_terminal(city, player_x(com_idx))
+				terminal = finder.get_bus_terminal(city, player_x(com_idx))
 				if(terminal.get_halt().get_owner().nr != 1)
 				{
 					local tile_list = terminal.get_halt().get_tile_list()

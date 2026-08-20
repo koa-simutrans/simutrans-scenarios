@@ -1392,7 +1392,7 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 		// ˜Hü‚ª’Ê‚Á‚Ä‚È‚¢‰w‚Åƒx[ƒX‚Ì‰w‚©‚çÅ‰“‚Ì‰w‚ğ‘Io
 		tbl_no_line_sta_list = sort(tbl_no_line_sta_list, @(a,b) b.length <=> a.length)
 		local no_line_sta = tbl_no_line_sta_list[0].halt
-		// —×‚Ì‰w‚É“S“¹˜Hü‚ª‚ ‚èAI’…‰w‚È‚çA‚»‚ê‚ğ‰„L‚·‚é
+		// —×‚Ì‰w‚É“S“¹˜Hü‚ª‚ ‚èAI’…‰w‚È‚çA‚»‚ê‚ğ‰„L‚·‚é(1˜Hü‚Ì‚İ)
 		local halt_info = station.get_station_info(no_line_sta, 2, false)
 		// ˜Hü‚ª’Ê‚Á‚Ä‚È‚¢‰w‚Í‘å’ï–_ü‰w‚È‚Ì‚Å...
 		local from_tile = halt_info.tbl_form_info_list[0].stop
@@ -1405,78 +1405,92 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 			local next_sta_list = station.search_next_sta(tbl_target, from_tile, dd, false, [])
 			next_sta_list = filter(next_sta_list, @(a) a.halt.get_line_list().get_count() != 0)
 			if(next_sta_list.len() == 0){ continue }
-			// —×Ú‰w‚Ì‚¤‚¿‹——£‚ª‹ß‚¢‰w‚ğ‘I’è
-			next_sta_list = sort(next_sta_list, @(a,b) abs(a.tile_list[0].x-from_tile.x)+abs(a.tile_list[0].y-from_tile.y) <=> abs(b.tile_list[0].x-from_tile.x)+abs(b.tile_list[0].y-from_tile.y))
-			local convoy_length = 0
-			local line_list = next_sta_list[0].halt.get_line_list()
-			line_list = filter(line_list, @(a) a.get_waytype() == wt_rail && a.get_owner().nr == pl.nr)
-			local tbl_next_sta_info = station.get_station_info(next_sta_list[0].halt, 2, false)
-			local convoy_counter = 0
-			foreach(line in line_list)
+
+			foreach(next_sta in next_sta_list)
 			{
-				// —×‚Ì‰w‚ªI’…‰w‚Ì˜HüŒŸõ
-				local target_idx_list = []
-				foreach(tbl_form_info in tbl_next_sta_info.tbl_form_info_list)
+				local convoy_length = 0
+				local line_list = next_sta.halt.get_line_list()
+				line_list = filter(line_list, @(a) a.get_waytype() == wt_rail && a.get_owner().nr == pl.nr)
+				local tbl_next_sta_info = station.get_station_info(next_sta.halt, 2, false)
+				local convoy_counter = 0
+				local extend_next_sta = null
+				foreach(line in line_list)
 				{
-					local temp_list = station.get_idx_in_line(line, tbl_form_info.stop)
-					foreach(temp in _step_generator(temp_list))
+					// —×‚Ì‰w‚ªI’…‰w‚Ì˜HüŒŸõ
+					local target_idx_list = []
+					foreach(tbl_form_info in tbl_next_sta_info.tbl_form_info_list)
 					{
-						target_idx_list.append(temp)
+						local temp_list = station.get_idx_in_line(line, tbl_form_info.stop)
+						foreach(temp in _step_generator(temp_list))
+						{
+							target_idx_list.append(temp)
+						}
+					}
+
+					if(target_idx_list.len() == 1)
+					{
+						// I“_‚Ì˜Hü‚ğ‰„L
+						if(target_idx_list[0] == 0)
+						{
+							// n”­‰w‘¤‚ğ‰„L
+							update_line(line, from_tile, 0, pl)
+							// ‹’“_‰w‚ªŠg’£‚³‚ê‚Ä‚¢‚é‚Í‚¸‚È‚Ì‚ÅA’…”­”Ôü‚ğ•ÏX
+							station.change_schedule_form(next_sta.halt, tbl_next_sta_info, line.get_convoy_list()[0].needs_electrification(), false)
+							extend_next_sta = next_sta.halt
+						}else{
+							// I“_‰w‘¤‚ğ‰„L
+							update_line(line, from_tile, target_idx_list[0]+1, pl)
+						}
+						// “d‰»
+						if(line.get_convoy_list()[0].needs_electrification())
+						{
+							local electric_tile = filter(next_sta.tile_list, @(a) a.find_object(mo_wayobj) != null)
+							local catenary = electric_tile.top().find_object(mo_wayobj).get_desc()
+							for(local ii = 0; ii < electric_tile.len(); ii++)
+							{
+								command_x.build_wayobj(pl, from_tile, electric_tile[ii], catenary)
+							}
+							if(dir_list.len() == 1)
+							{
+								local temp_list = station.trace_way(from_tile, wt_rail, dir.backward(dd), @(a) a.has_way(wt_rail))
+								command_x.build_wayobj(pl, from_tile, temp_list.top(), catenary)
+							}
+						}
+						update_flg = line
+						// ˜HüŠ‘®Ô—¼‚ª•¡”‚ ‚éA‚Ü‚½‚Í˜Hü‚ª•¡”‚ ‚éê‡A—×‚Ì‰w‚És‚«ˆá‚¢İ”õ‚ğİ‚¯‚é
+						convoy_counter = convoy_counter + line.get_convoy_list().get_count()
+						if(convoy_counter > 1)
+						{
+							local next_sta_name = next_sta.halt.get_name()
+							local err = station.set_passing_each_other(pl, next_sta.halt)
+							if(err)
+							{
+								gui.add_message_at(pl,"failed update station at "+next_sta_name+":"+err,world.get_time())
+							}
+						}
+						// ˜HüŠ‘®•Ò¬‚ÅÅ’·‚ğæ“¾
+						foreach(convoy in _step_generator(line.get_convoy_list()))
+						{
+							if(convoy_length < convoy.get_tile_length()){ convoy_length = convoy.get_tile_length() }
+						}
 					}
 				}
 
-				if(target_idx_list.len() == 1)
+				// ƒz[ƒ€’·‚³’²®
+				if(convoy_length > 1)
 				{
-					// I“_‚Ì˜Hü‚ğ‰„L
-					if(target_idx_list[0] == 0)
+					local tbl_temp = station.extend_form(pl, no_line_sta, convoy_length, [from_tile])
+					// Œö‹¤‰w‚Ìê‡Aî•ñXV
+					if("halt" in tbl_temp){ no_line_sta = tbl_temp.halt }
+					// —×Ú‰w‚àƒz[ƒ€’·‚³’²®
+					if(extend_next_sta)
 					{
-						// n”­‰w‘¤‚ğ‰„L
-						update_line(line, from_tile, 0, pl)
-					}else{
-						// I“_‰w‘¤‚ğ‰„L
-						update_line(line, from_tile, target_idx_list[0]+1, pl)
-					}
-					// “d‰»
-					if(line.get_convoy_list()[0].needs_electrification())
-					{
-						local electric_tile = filter(next_sta_list[0].tile_list, @(a) a.find_object(mo_wayobj) != null)
-						local catenary = electric_tile.top().find_object(mo_wayobj).get_desc()
-						for(local ii = 0; ii < electric_tile.len(); ii++)
-						{
-							command_x.build_wayobj(pl, from_tile, electric_tile[ii], catenary)
-						}
-						if(dir_list.len() == 1)
-						{
-							local temp_list = station.trace_way(from_tile, wt_rail, dir.backward(dd), @(a) a.has_way(wt_rail))
-							command_x.build_wayobj(pl, from_tile, temp_list.top(), catenary)
-						}
-					}
-					update_flg = line
-					// ˜HüŠ‘®Ô—¼‚ª•¡”‚ ‚éA‚Ü‚½‚Í˜Hü‚ª•¡”‚ ‚éê‡A—×‚Ì‰w‚És‚«ˆá‚¢İ”õ‚ğİ‚¯‚é
-					convoy_counter = convoy_counter + line.get_convoy_list().get_count()
-					if(convoy_counter > 1)
-					{
-						local next_sta_name = next_sta_list[0].halt.get_name()
-						local err = station.set_passing_each_other(pl, next_sta_list[0].halt)
-						if(err)
-						{
-							gui.add_message_at(pl,"failed update station at "+next_sta_name+":"+err,world.get_time())
-						}
-					}
-					// ˜HüŠ‘®•Ò¬‚ÅÅ’·‚ğæ“¾
-					foreach(convoy in _step_generator(line.get_convoy_list()))
-					{
-						if(convoy_length < convoy.get_tile_length()){ convoy_length = convoy.get_tile_length() }
+						local tbl_nextsta_form_info_list = tbl_next_sta_info.tbl_form_info_list
+						local form_tile_list = map(tbl_nextsta_form_info_list, @(a) a.stop)
+						station.extend_form(pl, extend_next_sta, convoy_length, form_tile_list)
 					}
 				}
-			}
-
-			// ƒz[ƒ€’·‚³’²®
-			if(convoy_length > 1)
-			{
-				local tbl_temp = station.extend_form(pl, no_line_sta, convoy_length, [from_tile])
-				// Œö‹¤‰w‚Ìê‡Aî•ñXV
-				if("halt" in tbl_temp){ no_line_sta = tbl_temp.halt }
+				if(update_flg){ break }
 			}
 		}
 		if(update_flg){ return update_flg }
@@ -1611,8 +1625,11 @@ if(debug_mode){
 			info = filter(info, @(a) is_member(a.dir, [dir.backward(outward_root[ii].dir), dir.backward(outward_root[ii].dir)+outward_root[ii].dir]))
 			// ƒz[ƒ€‚ğg—p‚µ‚Ä‚¢‚é˜Hü”‚ªÅ¬‚Ìƒz[ƒ€‚ğ‘I‘ğ
 			local tbl_form_info = station.get_line_using_track(outward_root[ii].halt, 2)
-			if(tbl_form_info.len() > 1){ tbl_form_info = filter(tbl_form_info, @(a) !(compare_coord(a.stop, outward_root[ii].stop))) }
 			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
+			if(tbl_form_info.len() > 1 && ii == outward_root.len() - 1)
+			{
+				tbl_form_info = filter(tbl_form_info, @(a) !(compare_coord(a.stop, outward_root[ii].stop)))
+			}
 			tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
 			stop_list.append(tbl_form_info[0].stop)
 			halt_name_list.append(outward_root[ii].halt.get_name())

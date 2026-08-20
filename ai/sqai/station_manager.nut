@@ -289,11 +289,11 @@ class station_manager_t extends node_t
 						station_office_tile = hit_tile_list[0]
 					}else{
 						// 従来の処理(駅が大きいとうまく処理できない)
-						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.north))
+						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.east))
 						if(station_office_tile == null)
 						{
 							station_office_dir = SO_WEST
-							station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.south))
+							station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.west))
 						}
 					}
 				}else{
@@ -308,11 +308,11 @@ class station_manager_t extends node_t
 						station_office_tile = hit_tile_list[0]
 					}else{
 						// 従来の処理(駅が大きいとうまく処理できない)
-						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.south))
+						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.west))
 						if(station_office_tile == null)
 						{
 							station_office_dir = SO_EAST
-							finder.coord2D_to_tile(finder.move_coord(tile, dir.north))
+							finder.coord2D_to_tile(finder.move_coord(tile, dir.east))
 						}
 					}
 				}
@@ -334,11 +334,11 @@ class station_manager_t extends node_t
 						station_office_tile = hit_tile_list[0]
 					}else{
 						// 従来の処理(駅が大きいとうまく処理できない)
-						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.west))
+						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.south))
 						if(station_office_tile == null)
 						{
 							station_office_dir = SO_NORTH
-							finder.coord2D_to_tile(finder.move_coord(tile, dir.east))
+							finder.coord2D_to_tile(finder.move_coord(tile, dir.north))
 						}
 					}
 				}else{
@@ -353,11 +353,11 @@ class station_manager_t extends node_t
 						station_office_tile = hit_tile_list[0]
 					}else{
 						// 従来の処理(駅が大きいとうまく処理できない)
-						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.east))
+						station_office_tile = finder.coord2D_to_tile(finder.move_coord(tile, dir.north))
 						if(station_office_tile == null)
 						{
 							station_office_dir = SO_SOUTH
-							finder.coord2D_to_tile(finder.move_coord(tile, dir.west))
+							finder.coord2D_to_tile(finder.move_coord(tile, dir.south))
 						}
 					}
 				}
@@ -552,6 +552,25 @@ return err }
 		local err = road_info.build_bus_stop(pl, bus_stop_tile)
 		if(err)
 		{
+			if(bus_stop_tile.find_object(mo_bridge))
+			{
+				local d_list = finder.divide_dir(bus_stop_tile.get_way_dirs(wt_road))
+				foreach(d in d_list)
+				{
+					bus_stop_tile = bus_stop_tile.get_neighbour(wt_road, d)
+					local ii = 1
+					while(bus_stop_tile.find_object(mo_bridge) == null)
+					{
+						if(ii > 2){ break }
+						bus_stop_tile = tile_x(bus_stop_tile.x, bus_stop_tile.y, bus_stop_tile.z + ii)
+						ii++
+					}
+					if(bus_stop_tile.find_object(mo_bridge) == null){ continue }
+					err = road_info.build_bus_stop(pl, bus_stop_tile)
+					if(!err){ break }
+				}
+				if(!err){ return }
+			}
 			gui.add_message_at(pl, "failed build busstop at "+ coord_to_string(bus_stop_tile), bus_stop_tile)
 		}
 	}
@@ -1674,62 +1693,8 @@ return err }
 
 		// 駅情報更新
 		sta_info = get_station_info(halt, 2, be_electrified)
-		tbl_form_info_list = sta_info.tbl_form_info_list
 		// スケジュール更新
-		local line_list = halt.get_line_list()
-		line_list = filter(line_list, @(a) a.get_waytype() == wt_rail)
-		foreach(line in line_list)
-		{
-			local schedule_entries = line.get_schedule().entries
-			// schedule_entry_xはcoord3dの継承なので
-			local target_sche_idx_list = get_idx_in_line(line, stop_tile)
-			if(set_signal_flg)
-			{
-				foreach(tbl_form_info in tbl_form_info_list)
-				{
-					local halt_info = { halt = halt, dir = tbl_form_info.dir }
-					local next_sta_list = search_next_sta(halt_info, tbl_form_info.stop, tbl_form_info.dir, be_electrified, [])
-					
-					foreach(target in target_sche_idx_list)
-					{
-						local t_idx = target + 1
-						if(target == schedule_entries.len() - 1){ t_idx = 0 }
-						local temp_list = filter(next_sta_list, @(a) finder.is_same_halt(a.halt,schedule_entries[t_idx].get_halt(pl)))
-						if(temp_list.len() != 0)
-						{
-							schedule_entries[target] = tbl_form_info.stop
-						}
-					}
-				}
-			}else{
-				// スイッチバック駅の場合
-				// 始終点以外、または複数路線が利用している駅のみ着発番線を変更
-				if(target_sche_idx_list.len() > 1 || line_list.len() > 1)
-				{
-					foreach(target in target_sche_idx_list)
-					{
-						local t_idx = target - 1
-						if(t_idx == -1){ t_idx = schedule_entries.len() - 1 }
-						if(is_member(tbl_expand_info.expand_dir, [dir.north, dir.south]))
-						{
-							if(tbl_expand_info.expand_dir == coord(0,schedule_entries[t_idx].y - schedule_entries[target].y).to_dir())
-							{
-								local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
-								schedule_entries[target] = temp_stop[0].stop
-							}
-						}else{
-							if(tbl_expand_info.expand_dir == coord(schedule_entries[t_idx].x - schedule_entries[target].x,0).to_dir())
-							{
-								local temp_stop = filter(tbl_form_info_list, @(a) get_current_stop(schedule_entries[target], sta_info) != a.stop)
-								schedule_entries[target] = temp_stop[0].stop
-							}
-						}
-					}
-				}
-			}
-			local schedule = schedule_x(wt_rail, schedule_entries)
-			line.change_schedule(pl, schedule)
-		}
+		change_schedule_form(halt, sta_info, be_electrified, set_signal_flg)
 
 		return null
 	}
@@ -1861,6 +1826,104 @@ return err }
 	}
 
 	/***************************************
+	 * 駅拡張時に当該駅を発着する路線のスケジュールを更新する
+	 * 引数：拡張した駅(halt_x)、駅情報構造体(table)、電化区間のみ情報取得するか(boolean)
+	 * 　　　駅拡張時に出発信号を設置したか(boolean)
+	 * 備考：駅情報構造体はget_station_info関数の戻り値
+	 * 　　　第四引数は終端駅の場合、設置しない
+	 ***************************************/
+	function change_schedule_form(halt, tbl_station_info, be_electrified, set_signal_flg)
+	{
+		local tbl_form_info_list = tbl_station_info.tbl_form_info_list
+		// スケジュール更新のため、隣接駅情報作成
+		if(set_signal_flg)
+		{
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				local halt_info = { halt = halt, dir = tbl_form_info.dir }
+				local next_sta_list = search_next_sta(halt_info, tbl_form_info.stop, tbl_form_info.dir, be_electrified, [])
+				tbl_form_info.next_sta_list <- next_sta_list
+			}
+		}else{
+			// 終端駅が該当
+			local halt_info = { halt = halt, dir = tbl_form_info_list[0].dir }
+			local dir_list = map(tbl_form_info_list, @(a) a.dir)
+			dir_list = filter(dir_list, @(a) dir.is_single(a))
+			if(dir_list.len() == 0)
+			{
+				dir_list = finder.divide_dir(tbl_form_info_list[0].dir)
+			}
+			local next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[0], be_electrified, [])
+			if(next_sta_list.len() == 0 && dir_list.len() > 0)
+			{
+				next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[1], be_electrified, [])
+			}
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				tbl_form_info.next_sta_list <- []
+			}
+			local asf = astar_route_finder(wt_rail)
+			foreach(next_sta in next_sta_list)
+			{
+				local tbl_list = []
+				foreach(tbl_form_info in tbl_form_info_list)
+				{
+					local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 2)
+					boundary_list = sort(boundary_list, @(a,b) abs(a.x-next_sta.tile_list[0].x)+abs(a.y-next_sta.tile_list[0].y) <=> abs(b.x-next_sta.tile_list[0].x)+abs(b.y-next_sta.tile_list[0].y))
+					local res = asf.search_route([boundary_list[0]], next_sta.tile_list)
+					if("routes" in res)
+					{
+						tbl_list.append({stop = tbl_form_info.stop, length = res.routes.len()})
+					}
+				}
+				tbl_list = sort(tbl_list, @(a,b) a.length <=> b.length)
+				if(tbl_list.len() > 0)
+				{
+					foreach(tbl_form_info in tbl_form_info_list)
+					{
+						if(compare_coord(tbl_form_info.stop, tbl_list[0].stop))
+						{
+							tbl_form_info.next_sta_list.append(next_sta)
+						}
+					}
+				}
+			}
+		}
+
+		// スケジュール更新
+		local line_list = halt.get_line_list()
+		line_list = filter(line_list, @(a) a.get_waytype() == wt_rail)
+		local pl = line_list[0].get_owner()
+		foreach(line in line_list)
+		{
+			local target_sche_idx_list = []
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				local temp_list = get_idx_in_line(line, tbl_form_info.stop)
+				if(temp_list.len() != 0){ target_sche_idx_list = combine(target_sche_idx_list, temp_list) }
+			}
+			local schedule_entries = line.get_schedule().entries
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				foreach(target in target_sche_idx_list)
+				{
+					local t_idx = set_signal_flg ? target + 1 : target - 1
+					if(t_idx == schedule_entries.len()){ t_idx = 0 }
+					if(t_idx == -1){ t_idx = schedule_entries.len() - 1 }
+					local temp_list = filter(tbl_form_info.next_sta_list, @(a) finder.is_same_halt(a.halt,schedule_entries[t_idx].get_halt(pl)))
+					if(temp_list.len() != 0)
+					{
+						schedule_entries[target] = tbl_form_info.stop
+					}
+				}
+			}
+
+			local schedule = schedule_x(wt_rail, schedule_entries)
+			line.change_schedule(pl, schedule)
+		}
+	}
+
+	/***************************************
 	 * 駅を分岐駅にする
 	 * 引数：プレイヤー会社(player_x)、駅(halt_x)、分岐側の基準点(tile_x)
 	 * 戻り値：駅の入場、出場タイル
@@ -1895,6 +1958,45 @@ return err }
 		if(tbl_form_info_list.len() == 1 && dir.is_single(tbl_form_info_list[0].dir))
 		{
 			stop_flg = true
+			
+			// 分岐側の基準点が棒線終端駅時代の線路向きの逆側の場合ポイント追加
+			local search_dir = dir.none
+			if(is_member(tbl_form_info_list[0].dir, [dir.north, dir.south]))
+			{
+				search_dir = coord(0, branch_side.y - tbl_form_info_list[0].stop.y).to_dir()
+			}else{
+				search_dir = coord(branch_side.x - tbl_form_info_list[0].stop.x, 0).to_dir()
+			}
+			if(tbl_form_info_list[0].dir != search_dir)
+			{
+				local original_stop = tbl_form_info_list[0].stop
+				// 駅情報更新
+				sta_info = get_station_info(halt, 2, be_electrified)
+				tbl_form_info_list = sta_info.tbl_form_info_list
+				tbl_form_info_list = filter(tbl_form_info_list, @(a) !(compare_coord(a.stop, original_stop)))
+				local search_tile_list = get_boundary_station_pos(tbl_form_info_list[0].stop, 3)
+				search_tile_list = sort(search_tile_list, @(a,b) abs(a.x-branch_side.x)+abs(a.y-branch_side.y) <=> abs(b.x-branch_side.x)+abs(b.y-branch_side.y))
+				local vertical_dir = finder.rotate_right_angle(search_dir, true)
+				local temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
+				if(temp_tile == null || !(temp_tile.has_way(wt_rail)))
+				{
+					vertical_dir = finder.rotate_right_angle(search_dir, false)
+					temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
+				}
+				while(dir.is_threeway(search_tile_list[0].get_way_dirs(wt_rail)) || dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))
+				{
+					search_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], search_dir))
+					temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
+				}
+				if(search_tile_list[0].has_way(wt_rail) && temp_tile.has_way(wt_rail))
+				{
+					if(temp_tile.find_object(mo_depot_rail) != null)
+					{
+						temp_tile.remove_object(pl, mo_depot_rail)
+					}
+					expand_straight_rail(pl, search_tile_list[0], temp_tile)
+				}
+			}
 		}
 		
 		if(stop_flg)

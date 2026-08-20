@@ -175,10 +175,10 @@ class finder {
 	 *********************************************/
 	static function reseach_station_nearest_city(city, pl, blnIncludePub)
 	{
-		// ƒvƒŒƒCƒ„[‰ïŽÐŠ‘®‰worŒö‹¤‰wˆê——Žæ“¾
-		local halt_list = filter(halt_list_x(), @(a) check_sta_freight_property(a, wt_rail, 2).len() != 0)
+		// ƒvƒŒƒCƒ„[‰ïŽÐŠ‘®‰worŒö‹¤‰wˆê——Žæ“¾(ƒoƒX’â•t‚«)
+		local halt_list = filter(halt_list_x(), @(a) a.get_owner().nr == pl.nr || a.get_owner().nr == 1)
 		if(halt_list.len() == 0){ return }
-		halt_list = filter(halt_list, @(a) a.get_owner().nr == pl.nr || a.get_owner().nr == 1)
+		halt_list = filter(halt_list, @(a) check_sta_freight_property(a, wt_rail, 2).len() != 0 && check_sta_freight_property(a, wt_road, 2).len() != 0)
 		if(halt_list.len() == 0){ return }
 		// ˆø”‚Ì’¬–ðê‚ª‹ß‚¢‰wˆê——Žæ“¾
 		halt_list = filter(halt_list, @(a) compare_coord(find_nearest_city(a.get_tile_list().top()).get_pos(), city.get_pos()))
@@ -194,9 +194,6 @@ class finder {
 			}
 			return public_sta_list[0]
 		}else{
-			// ’¬Å‹ßÚ‚Ì‰w‚È‚çƒoƒX’â‚ ‚é‚Í‚¸
-			halt_list = filter(halt_list, @(a) check_sta_freight_property(a, wt_road, 2).len() != 0 && a.get_owner().nr == pl.nr)
-			if(halt_list.len() == 0){ return }
 			// ‰w‚Ì’èˆõ‚Å~‡ƒ\[ƒg
 			if(halt_list.len() > 1)
 			{
@@ -452,17 +449,12 @@ class finder {
 		local station = reseach_station_nearest_city(city, pl, true)
 		if(station != null)
 		{
-			// •Ê‚Ì’¬‚Ì‰w‚ªƒqƒbƒg‚µ‚È‚¢‚æ‚¤‚É
-			// ’¬‚Ì–¼‘O‚ª“ü‚Á‚Ä‚¢‚éorŒö‹¤‰w‚Éi‚é
-			if(station.get_owner().nr == 1 || station.get_name().find(city.get_name()) != null)
+			// ƒoƒX’â‚ ‚é‚©
+			local bus_stop_list = check_sta_freight_property(station, wt_road, 2)
+			if(bus_stop_list.len() > 0)
 			{
-				// ƒoƒX’â‚ ‚é‚©
-				local bus_stop_list = check_sta_freight_property(station, wt_road, 2)
-				if(bus_stop_list.len() > 0)
-				{
-					local idx = calc_idx(pl.nr, bus_stop_list.len())
-					return bus_stop_list[idx]
-				}
+				local idx = calc_idx(pl.nr, bus_stop_list.len())
+				return bus_stop_list[idx]
 			}
 		}
 
