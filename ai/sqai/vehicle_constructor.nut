@@ -1664,27 +1664,43 @@ if(debug_mode){
 		}
 		if(merge_line_list.len() > 0)
 		{
+			// 統合失敗時にリカバリー用
+			local recovery_schedule = schedule_x(wt_rail, [])
+			for(local ii = 0; ii < merge_line_list[0].get_schedule().entries.len(); ii++)
+			{
+				recovery_schedule.entries.append(merge_line_list[0].get_schedule().entries[ii])
+			}
 			// 新路線に統合
 			merge_line_list[0].change_schedule(pl, schedule)
+			local suc = true
 			if(merge_line_list[0].get_convoy_list()[0].needs_electrification())
 			{
 				local rail_info = rail_manager_t()
-				rail_info.electrify_line(merge_line_list[0])
+				suc = rail_info.electrify_line(merge_line_list[0])
+				// 電化失敗したら戻す
+				if(!(suc))
+				{
+					merge_line_list[0].change_schedule(pl, recovery_schedule)
+				}
 			}
 			// ホーム長さ調整
-			extend_form_to_convoy_length(merge_line_list[0])
-		}else{
-			// 路線作成
-			pl.create_line(wt_rail)
-			local list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
-			foreach(line in list)
+			if(suc)
 			{
-				local schedule_entries = line.get_schedule().entries
-				if (schedule_entries.len()==0)
-				{
-					line.change_schedule(pl, schedule)
-					return line
-				}
+				extend_form_to_convoy_length(merge_line_list[0])
+				return merge_line_list[0]
+			}
+		}
+
+		// 路線作成
+		pl.create_line(wt_rail)
+		local list = filter(pl.get_line_list(), @(a) a.get_waytype() == wt_rail)
+		foreach(line in list)
+		{
+			local schedule_entries = line.get_schedule().entries
+			if (schedule_entries.len()==0)
+			{
+				line.change_schedule(pl, schedule)
+				return line
 			}
 		}
 	}

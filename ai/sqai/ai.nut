@@ -454,13 +454,10 @@ gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
-local aaa = finder.coord2D_to_tile(coord(359,38))
+local aaa = finder.coord2D_to_tile(coord(485,441))
 local target = finder.coord2D_to_tile(coord(450,394))
-local bbb=station.get_station_info(aaa.get_halt(), 2, false)
-local ccc=bbb.tbl_form_info_list
-foreach(ado in ccc){
-gui.add_message_at(our_player, "["+coord_to_string(ado.stop)+"],dir:"+ado.dir,ado.stop)
-}
+local bbb=station.get_station_info(aaa.get_halt(),2, true)
+local ccc = station.change_schedule_form(aaa.get_halt(), bbb, true, false)
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)

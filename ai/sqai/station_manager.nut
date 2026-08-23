@@ -882,7 +882,7 @@ return err }
 			for(local ii = 0; ii < search_dir_list.len(); ii++)
 			{
 				local rail_list = trace_way(tbl_form_tile_list[0][0].tile, wt_rail, search_dir_list[ii], @(a) a.get_halt() != null)
-				rail_list = trace_way(rail_list.top(), wt_rail, search_dir_list[ii], @(a) abs(rail_list.top().x-a.x) + abs(rail_list.top().y-a.y) < 4)
+				rail_list = trace_way(rail_list.top(), wt_rail, search_dir_list[ii], @(a) abs(rail_list.top().x-a.x) + abs(rail_list.top().y-a.y) < 6)
 				if(dir.is_single(rail_list.top().get_way_dirs(wt_rail)))
 				{
 					origin_dir = dir.backward(search_dir_list[ii])
@@ -1854,7 +1854,7 @@ return err }
 				dir_list = finder.divide_dir(tbl_form_info_list[0].dir)
 			}
 			local next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[0], be_electrified, [])
-			if(next_sta_list.len() == 0 && dir_list.len() > 0)
+			if(next_sta_list.len() == 0 && dir_list.len() > 1)
 			{
 				next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[1], be_electrified, [])
 			}
@@ -1893,6 +1893,7 @@ return err }
 		// スケジュール更新
 		local line_list = halt.get_line_list()
 		line_list = filter(line_list, @(a) a.get_waytype() == wt_rail)
+		if(line_list.len() == 0){ return }
 		local pl = line_list[0].get_owner()
 		foreach(line in line_list)
 		{

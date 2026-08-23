@@ -916,6 +916,66 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 					halt_list = filter(halt_list, @(a) a.get_owner().nr == pl.nr)
 					halt = halt_list.len() > 0 ? halt_list[0] : null
 				}
+				
+				// ‰w‚Í‚È‚¢‚ªA‰wİ’u‰Â”\‚Èü˜H‚ª‚ ‚éê‡
+				if(!(halt))
+				{
+					around_tile_list = filter(around_tile_list, @(a) a.has_way(wt_rail) && a.get_way(wt_rail).get_owner().nr == pl.nr)
+					around_tile_list = filter(around_tile_list, @(a) dir.is_straight(a.get_way_dirs_masked(wt_rail) && (a.get_slope() == slope.flat || (a.get_slope() != slope.flat && a.is_bridge()))))
+					local target_list = []
+					foreach(around_tile in around_tile_list)
+					{
+						local dir_list = finder.divide_dir(around_tile.get_way_dirs_masked(wt_rail))
+						local continue_flg = false
+						foreach(dd in dir_list)
+						{
+							local list = [finder.coord2D_to_tile(finder.move_coord(around_tile, dd)), finder.coord2D_to_tile(finder.move_coord(around_tile, dd, 2)), finder.coord2D_to_tile(finder.move_coord(around_tile, dd, 3))]
+							if(is_member(null, list) || is_member(false, map(list, @(a) dir.is_straight(a.get_way_dirs_masked(wt_rail)))))
+							{
+								continue_flg = true
+								break
+							}
+						}
+						if(continue_flg){ continue }
+						target_list.append(around_tile)
+					}
+					if(target_list.len() > 0)
+					{
+						// ‰wŒšİ
+						local target = target_list[calc_idx(pl.nr, target_list.len())]
+						local err = station.build_form(pl, [target], true)
+						if(!(err))
+						{
+							// ’Ê‰ß‚·‚é˜Hü‚ğV‰w‚É’âÔ‚³‚¹‚é
+							insert_new_station(target.get_halt())
+							
+							// ’Ê‰ß•Ò¬‚ÅÅ’·•Ò¬æ“¾
+							local line_list = target.get_halt().get_line_list()
+							line_list = filter(line_list, @(a) a.get_waytype() == wt_rail && a.get_owner().nr == pl.nr)
+							local convoy_length = 0
+							local convoy_count = 0
+							foreach(line in line_list)
+							{
+								foreach(convoy in _step_generator(line.get_convoy_list()))
+								{
+									if(convoy_length < convoy.get_tile_length()){ convoy_length = convoy.get_tile_length() }
+									convoy_count++
+								}
+							}
+							// ƒz[ƒ€’·‚³’²®
+							if(convoy_length > 1)
+							{
+								station.extend_form(pl, target.get_halt(), convoy_length, [target])
+							}
+							if(convoy_count > 1)
+							{
+								station.set_passing_each_other(pl, target.get_halt())
+							}
+							jj++
+							continue
+						}
+					}
+				}
 			}
 
 			// ‰wİ’uÏ‚İ
@@ -952,6 +1012,9 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 					// blnFlg‚Ítrue‚ÅŒo—R’n‚©‚ç–Ú“I’n‚É‰„L‚·‚é
 					rtn.blnFlg <- !(blnBS)
 					rtn.add_list.append(target_via_list[idx])
+					
+					// ‚±‚±ˆÈ~V‹K‚É–Ú“I’n‚ğ’Ç‰Á‚µ‚È‚©‚Á‚½ê‡Anull‚ğ–ß‚·
+					start = rtn.tile
 					
 					jj++
 					continue
