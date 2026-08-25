@@ -21,7 +21,7 @@ class rail_manager_t extends manager_t
 		if(way_desc_list.len() == 1){ return way_desc_list[0] }
 		
 		local current_speed = 30
-		if(old_way_desc != null){ current_speed = old_way_desc.get_topspeed() }
+		if(old_way_desc != null){ current_speed = old_way_desc.get_topspeed() + 1 }
 		// 30km/h未満の線路は除外
 		way_desc_list = filter(way_desc_list, @(a) a.get_topspeed() >= current_speed)
 		// 建設費と維持費の合算の降順でソート

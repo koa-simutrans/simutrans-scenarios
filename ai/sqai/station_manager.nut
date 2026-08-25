@@ -1646,6 +1646,7 @@ return err }
 			temp_tile = finder.coord2D_to_tile(finder.move_coord(tbl_expand_info.expand_info[0], dir.backward(tbl_expand_info.expand_dir)))
 			if(!(dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))){ temp_tile = tbl_expand_info.expand_info[0] }
 			command_x.build_wayobj(pl, temp_tile, tbl_expand_info.expand_tile, catenary)
+			command_x.build_wayobj(pl, tbl_expand_info.expand_info[0], tbl_expand_info.expand_info.top(), catenary)
 		}
 
 		if(set_signal_flg)

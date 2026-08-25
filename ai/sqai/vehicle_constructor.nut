@@ -700,8 +700,29 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 						// 公共駅の場合、ホーム延伸とかすると駅情報が更新される
 						stop = stop_pos.get_halt()
 						// 鉄道高速化
+						local way_speed = finder.coord2D_to_tile(schedule_entries[0]).get_way(wt_rail).get_desc().get_topspeed()
+						local convoy_topspeed = 0
+						foreach(convoy in convoy_list)
+						{
+							local speed_list = map(convoy.get_vehicles(), @(a) a.get_topspeed())
+							speed_list = sort(speed_list, @(a,b) a <=> b)
+							if(convoy_topspeed < speed_list[0]){ convoy_topspeed = speed_list[0] }
+						}
 						local rail_info = rail_manager_t()
-						rail_info.update_rail(line)
+						if(way_speed < convoy_topspeed)
+						{
+							rail_info.update_rail(line)
+						}
+						local wayobj = finder.coord2D_to_tile(schedule_entries[schedule_entries.len()/2]).find_object(mo_wayobj)
+						local wayobj_speed = 0
+						if(wayobj)
+						{
+							wayobj_speed = wayobj.get_desc().get_topspeed()
+						}
+						if(wayobj_speed > 0 && wayobj_speed < convoy_topspeed)
+						{
+							rail_info.electrify_line(line)
+						}
 					}
 				}
 			}
@@ -2047,7 +2068,7 @@ if(debug_mode){
 	{
 		// デッドロックしている車両探索
 		local dl_convoy_list = filter(world.get_convoy_list(), @(a) a.get_owner().nr == pl.nr)
-		dl_convoy_list = filter(dl_convoy_list, @(a) a.get_traveled_distance().len() > 1 && a.get_traveled_distance()[0] == 0 && a.get_traveled_distance()[1] == 0)
+		dl_convoy_list = filter(dl_convoy_list, @(a) a.get_speed() == 0 && a.get_traveled_distance()[0] == 0)
 		// dl_convoy_list = filter(dl_convoy_list, @(a) !(a.is_loading) && !(a.is_waiting)) // デッドロックしてる車両は常にis_loading=is_waiting=trueなので意味なし
 		local line_list = []
 		foreach(convoy in dl_convoy_list)
