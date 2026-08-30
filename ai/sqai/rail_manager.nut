@@ -172,6 +172,35 @@ class rail_manager_t extends manager_t
 					}
 				}
 			}
+			// –¼Š‹ŒÕEŽY‹Æ‚É‰wÝ’uŒãAŠX—U’v‚µ‚½ê‡AƒoƒX’â‚ª‚È‚¢‚Ì‚ÅƒoƒX’â’Ç‰Á‚µ‚ÄŠù‘¶‰w‚Æ‚·‚é
+			if(!(already_station))
+			{
+				local candidate_tile_list = finder.find_target_places(city[0].get_pos(), 1, 1, 1, 15, @(a) a.get_halt() != null && finder.check_sta_freight_property(a.get_halt(), wt_rail, 2).len() > 0)
+				local candidate_list = []
+				foreach(candidate_tile in candidate_tile_list)
+				{
+					local halt = candidate_tile.get_halt()
+					if(halt.get_owner().nr == pl.nr || halt.get_owner().nr == 1)
+					{
+						if(!(is_member(true, map(candidate_list, @(a) finder.is_same_halt(a, halt)))))
+						{
+							candidate_list.append(halt)
+						}
+					}
+				}
+				foreach(candidate in candidate_list)
+				{
+					if(finder.check_sta_freight_property(candidate, wt_road, 2).len() == 0)
+					{
+						station.build_station_bus_stop(pl, candidate)
+					}
+					if(finder.check_sta_freight_property(candidate, wt_road, 2).len() > 0)
+					{
+						already_station = candidate
+						break
+					}
+				}
+			}
 			local tbl_sta_info = null
 			// ’¬‚ÉŠù‚É‰w‚ª‚ ‚é
 			if(already_station)

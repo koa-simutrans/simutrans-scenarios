@@ -640,7 +640,7 @@ class vehicle_constructor_t extends node_t
 try{
 if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_pas+", "+line.get_waytype(), (stop.get_tile_list())[0])}
 }catch(e){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_pas+", "+line.get_waytype(), world.get_time())}
-				if(convoy_cap < wait_pas)
+				if(convoy_cap * 2 < wait_pas)
 				{
 					if(line.get_waytype() == wt_road)
 					{
@@ -1649,7 +1649,7 @@ if(debug_mode){
 			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
 			if(tbl_form_info.len() > 1 && ii == outward_root.len() - 1)
 			{
-				tbl_form_info = filter(tbl_form_info, @(a) !(compare_coord(a.stop, outward_root[ii].stop)))
+				tbl_form_info = filter(tbl_form_info, @(a) !(is_member(a.stop, station.get_track_list(outward_root[ii].stop))))
 			}
 			tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
 			stop_list.append(tbl_form_info[0].stop)

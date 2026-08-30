@@ -504,7 +504,8 @@ class astar_builder extends astar
 					// 段差があるのにこっちくるケース
 					if(way != null && !(to.has_way(way.get_waytype())))
 					{
-						if(abs(from.z - to.z) == 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ flat_field_flg = 2 }
+						// from, toが平坦で段差ある場合は、橋梁対応
+						if(abs(from.z - to.z) == 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ flat_field_flg = -1 }
 						if(way != null && way.get_waytype() == wt_rail && abs(from.z - to.z) > 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ continue }
 						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
 						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
@@ -553,7 +554,7 @@ class astar_builder extends astar
 							// 始点と終点が共に平坦でない場合、始点のflat_field_flgが
 							// 2でないなら終点のノードを開かない
 							if(!(check_slope_dir(from.get_slope(), d)) && cnode.flag != 2){ continue }
-							if(abs(from.z - to.z) <= 1){ flat_field_flg = 2 }
+							if((abs(from.z - to.z) == 1 && cnode.dir == d) || from.z == to.z){ flat_field_flg = 2 }
 						}
 					}
 				}
@@ -687,11 +688,11 @@ class astar_builder extends astar
 			local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
 			local is_tunnel_1 = is_tunnel_0
 
-if(way != null && is_member(2, map(route, @(a) a.flag))){
-for (local i = 1; i<route.len(); i++) {
-  local aaa=tile_x(route[i].x, route[i].y, route[i].z)
-  gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
-}}
+//if(way != null && is_member(2, map(route, @(a) a.flag))){
+//for (local i = 1; i<route.len(); i++) {
+//  local aaa=tile_x(route[i].x, route[i].y, route[i].z)
+//  gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
+//}}
 			for (local i = 1; i<route.len(); i++) {
 				// remove any fields on our routes (only start & end currently)
 
@@ -720,7 +721,12 @@ for (local i = 1; i<route.len(); i++) {
 								tile_list.append(tile_x(route[jj].x, route[jj].y, route[jj].z))
 								jj++
 							}
-
+gui.add_message_at(our_player,"aster1:["+coord_to_string(route[i-1])+"]",route[i-1])
+for(local kk=0; kk < tile_list.len(); kk++)
+{
+  gui.add_message_at(our_player,"aster2:["+coord_to_string(tile_list[kk])+"]",tile_list[kk])
+}
+gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj])
 							terraform(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_list, tile_x(route[jj].x, route[jj].y, route[jj].z))
 
 							// 整地に伴い高さを更新
