@@ -168,6 +168,31 @@ class finder {
 	}
 
 	/*********************************************
+	 * 各駅の最近接町情報取得
+	 * 引数：駅リスト(halt_xのリスト)
+	 * 戻り値：各駅の最近接町情報リスト(table)
+	 * 　　　　halt：駅(halt_x)
+	 * 　　　　city：最近接町(city_x)
+	 *********************************************/
+	static function get_halt_nearest_city(halt_list)
+	{
+		local tbl_list = []
+		foreach(halt in halt_list)
+		{
+			local tile_list = halt.get_tile_list()
+			if(tile_list.len() == 0){ continue }
+			local sta_nearest_city = find_nearest_city(tile_list[0])
+			local tbl_info =
+			{
+				halt = halt
+				city = sta_nearest_city
+			}
+			tbl_list.append(tbl_info)
+		}
+		return tbl_list
+	}
+
+	/*********************************************
 	 * 町最近接の駅検索
 	 * 引数：町情報(city_x)、プレイヤー会社(player_x)、公共駅を検索対象に入れるかどうか(Boolean)
 	 * 戻り値：当該駅(halt_x)
@@ -374,56 +399,34 @@ class finder {
 	{
 //		try
 //		{
-			// 市域内に自社のバス停があるかチェック
-			local bus_stop = reseach_sta_in_city(city, pl.nr)
-			// 市域内に公共駅のバス停があるかチェック
-			if(pl.nr != 1)
-			{
-				local public_bus_stop = reseach_sta_in_city(city, 1)
-				if(public_bus_stop.len() != 0)
-				{
-					// 公共駅のバス停に自社便が発着しているかチェック
-					foreach(stop in public_bus_stop)
-					{
-						bus_stop.append(stop)
-					}
-				}
-			}
-			bus_stop = filter(bus_stop, @(a) check_sta_freight_property(a, wt_road, 2).len() != 0)
-
+			local bus_stop = []
 			if(out_area_flg)
 			{
-				// 駅一覧取得
 				local halt_list = filter(halt_list_x(), @(a) check_sta_freight_property(a, wt_road, 2).len() != 0)
-				local sta_list = filter(halt_list, @(a) a.get_owner().nr == pl.nr)
+				// 公共駅のバス停は自社便が発着していること
+				halt_list = filter(halt_list, @(a) a.get_owner().nr == pl.nr || (a.get_owner().nr == 1 && is_member(pl.nr, map(a.get_line_list(), @(b) b.get_owner().nr))))
+				local tbl_sta_list = get_halt_nearest_city(halt_list)
+				tbl_sta_list = filter(tbl_sta_list, @(a) compare_coord(a.city.get_pos(), city.get_pos()))
+				bus_stop = map(tbl_sta_list, @(a) a.halt)
+			}else{
+				// 市域内に自社のバス停があるかチェック
+				bus_stop = reseach_sta_in_city(city, pl.nr)
+				// 市域内に公共駅のバス停があるかチェック
 				if(pl.nr != 1)
 				{
-					local public_bus_stop = filter(halt_list, @(a) a.get_owner().nr == 1)
-					// 公共駅のバス停に自社便が発着しているかチェック
-					foreach(stop in public_bus_stop)
+					local public_bus_stop = reseach_sta_in_city(city, 1)
+					if(public_bus_stop.len() != 0)
 					{
-						local line_list = filter(stop.get_line_list(), @(a) a.get_owner().nr == pl.nr)
-						if(line_list.len() != 0)
+						// 公共駅のバス停に自社便が発着しているかチェック
+						foreach(stop in public_bus_stop)
 						{
-							sta_list.append(stop)
+							bus_stop.append(stop)
 						}
 					}
 				}
-
-				// 役場に近い駅探索
-				foreach(sta in sta_list)
-				{
-					local sta_area = sta.get_tile_list()
-					if(sta_area.len() == 0){ continue }
-					local sta_nearest_city = find_nearest_city(sta_area[0])
-					if(city.get_name() == sta_nearest_city.get_name())
-					{
-						if(is_member(true, map(bus_stop, @(a) is_same_halt(a, sta)))){ continue }
-						bus_stop.append(sta)
-						break
-					}
-				}
+				bus_stop = filter(bus_stop, @(a) check_sta_freight_property(a, wt_road, 2).len() != 0)
 			}
+
 			return bus_stop
 /*		}catch(e)
 		{

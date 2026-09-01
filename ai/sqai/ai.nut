@@ -455,9 +455,10 @@ local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
 local aaa = finder.coord2D_to_tile(coord(485,441))
-local target = finder.coord2D_to_tile(coord(450,394))
-local bbb=station.get_station_info(aaa.get_halt(),2, true)
-local ccc = station.change_schedule_form(aaa.get_halt(), bbb, true, false)
+local target = finder.get_halt_nearest_city(halt_list_x())
+foreach(bbb in target){
+  gui.add_message_at(our_player, bbb.halt.get_name()+","+bbb.city.get_name(),world.get_time())
+}
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
@@ -771,11 +772,19 @@ if(debug_mode)
 	{
 		local vehicle = vehicle_constructor_t()
 		local road_info = road_manager_t()
-		foreach(city in city_list_x())
+		local city_list = []
+		// 公共駅のバス停は自社便が発着していること
+		local halt_list = filter(halt_list_x(), @(a) a.get_owner().nr == our_player_nr || (a.get_owner().nr == 1 && is_member(our_player_nr, map(a.get_line_list(), @(b) b.get_owner().nr))))
+		local tbl_halt_info_list = finder.get_halt_nearest_city(halt_list)
+		foreach(tbl_halt_info in tbl_halt_info_list)
 		{
-			// 自社のバスターミナルがない場合は、整備しない
-			local terminal = finder.get_bus_terminal(city, our_player)
-			if(!(terminal)){ continue }
+			if(!(is_member(tbl_halt_info.city.get_pos(), map(city_list, @(a) a.get_pos()))))
+			{
+				city_list.append(tbl_halt_info.city)
+			}
+		}
+		foreach(city in city_list)
+		{
 			// 他社のバス停がある場合は、整備しない
 			local com_halt_list = []
 			local com_idx = -1
@@ -807,7 +816,7 @@ if(debug_mode)
 					}
 				}
 			}else{
-				terminal = finder.get_bus_terminal(city, player_x(com_idx))
+				local terminal = finder.get_bus_terminal(city, player_x(com_idx))
 				if(terminal.get_halt().get_owner().nr != 1)
 				{
 					local tile_list = terminal.get_halt().get_tile_list()
@@ -837,7 +846,7 @@ if(debug_mode)
 				}
 			}
 		}
-		foreach(city in city_list_x())
+		foreach(city in city_list)
 		{
 			// 一旦、市域内の利用可能バス停を取得(スケジュール設定中に落ちても再開できるように)
 			local halt_in_city_list = finder.check_busstop_in_city(city, our_player, 0)

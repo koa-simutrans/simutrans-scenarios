@@ -1647,7 +1647,7 @@ if(debug_mode){
 			// ホームを使用している路線数が最小のホームを選択
 			local tbl_form_info = station.get_line_using_track(outward_root[ii].halt, 2)
 			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
-			if(tbl_form_info.len() > 1 && ii == outward_root.len() - 1)
+			if(tbl_form_info.len() > 1)
 			{
 				tbl_form_info = filter(tbl_form_info, @(a) !(is_member(a.stop, station.get_track_list(outward_root[ii].stop))))
 			}

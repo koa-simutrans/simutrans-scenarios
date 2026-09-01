@@ -2469,8 +2469,16 @@ return err }
 	 ***************************************/
 	function expand_straight_rail(pl, start, end)
 	{
-		// 建設タイルの高さを揃える
 		local target_tile_list = finder.get_interpolate_tile(start, end)
+		// 終点に直交道路があるなら終点をずらす
+		local road_info = road_manager_t()
+		local d = coord(end.x - start.x, end.y - start.y).to_dir()
+		local cross_road_tile_list = []
+		while(end.has_way(wt_road) && !(road_info.check_not_cross_road(end, dir.double(d))))
+		{
+			cross_road_tile_list.append(end)
+			end = finder.coord2D_to_tile(finder.move_coord(end, d))
+		}
 		// 線路以外を除去する
 		foreach(target_tile in target_tile_list)
 		{
@@ -2480,14 +2488,15 @@ return err }
 				while(target_tile.find_object(mo_train) != null){ sleep() }
 				target_tile.remove_object(pl, mo_depot_rail)
 			}
-			if(target_tile.has_way(wt_rail)){ continue }
+			if(target_tile.has_way(wt_rail) || is_member(target_tile, cross_road_tile_list)){ continue }
 			local obj_list = target_tile.get_objects()
 			foreach(obj in _step_generator(obj_list))
 			{
 				if(obj.get_type() == mo_tree){ break }
 				target_tile.remove_object(pl, obj.get_type())
 			}
-		}	
+		}
+		// 建設タイルの高さを揃える
 		target_tile_list = finder.align_height(target_tile_list, start.z, pl, false)
 		target_tile_list = finder.flat_tiles(target_tile_list, pl)
 		// 建設域の高さを変更したのでtile情報更新
@@ -2498,7 +2507,6 @@ return err }
 		if(err)
 		{
 			local dist = abs(end.x - start.x) + abs(end.y - start.y)
-			local d = coord(end.x - start.x, end.y - start.y).to_dir()
 			if(start.has_way(wt_rail))
 			{
 				d = start.get_way_dirs(wt_rail)
