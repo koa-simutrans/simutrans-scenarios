@@ -454,10 +454,12 @@ gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
-local aaa = finder.coord2D_to_tile(coord(485,441))
-local target = finder.get_halt_nearest_city(halt_list_x())
-foreach(bbb in target){
-  gui.add_message_at(our_player, bbb.halt.get_name()+","+bbb.city.get_name(),world.get_time())
+local aaa = finder.coord2D_to_tile(coord(235,139))
+local bbb = finder.coord2D_to_tile(coord(240,139))
+local asf = astar_route_finder(wt_rail)
+local res = asf.search_route([aaa], [bbb])
+foreach(iii in res.routes){
+  gui.add_message_at(our_player, "["+coord3d_to_string(iii)+"]",iii)
 }
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/

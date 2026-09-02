@@ -572,7 +572,7 @@ class vehicle_constructor_t extends node_t
 
 	/***************************************
 	 * 2点間の経路探索した時に通過するタイル数を取得
-	 * 引数：探索開始座標(Coord)、探索終了座標(Coord)、線タイプ(enum)、最近接調査か最遠方調査か(boolean)
+	 * 引数：探索開始座標(Coord3D)、探索終了座標(Coord3D)、線タイプ(enum)、最近接調査か最遠方調査か(boolean)
 	 * 戻り値：2点間の経路探索した時に通過するタイル数
 	 ***************************************/
 	function get_trace_tile(from, to, way_type, blnNearest)
@@ -1427,91 +1427,94 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 			next_sta_list = filter(next_sta_list, @(a) a.halt.get_line_list().get_count() != 0)
 			if(next_sta_list.len() == 0){ continue }
 
-			foreach(next_sta in next_sta_list)
+			local next_sta = next_sta_list[0]
+			if(next_sta_list.len() > 1)
 			{
-				local convoy_length = 0
-				local line_list = next_sta.halt.get_line_list()
-				line_list = filter(line_list, @(a) a.get_waytype() == wt_rail && a.get_owner().nr == pl.nr)
-				local tbl_next_sta_info = station.get_station_info(next_sta.halt, 2, false)
-				local convoy_counter = 0
-				local extend_next_sta = null
-				foreach(line in line_list)
-				{
-					// 隣の駅が終着駅の路線検索
-					local target_idx_list = []
-					foreach(tbl_form_info in tbl_next_sta_info.tbl_form_info_list)
-					{
-						local temp_list = station.get_idx_in_line(line, tbl_form_info.stop)
-						foreach(temp in _step_generator(temp_list))
-						{
-							target_idx_list.append(temp)
-						}
-					}
+				next_sta_list = sort(next_sta_list, @(a,b) get_trace_tile(from_tile, a.tile_list[0], wt_rail, true) <=> get_trace_tile(from_tile, b.tile_list[0], wt_rail, true))
+				next_sta = next_sta_list[0]
+			}
 
-					if(target_idx_list.len() == 1)
+			local convoy_length = 0
+			local line_list = next_sta.halt.get_line_list()
+			line_list = filter(line_list, @(a) a.get_waytype() == wt_rail && a.get_owner().nr == pl.nr)
+			local tbl_next_sta_info = station.get_station_info(next_sta.halt, 2, false)
+			local convoy_counter = 0
+			local extend_next_sta = null
+			foreach(line in line_list)
+			{
+				// 隣の駅が終着駅の路線検索
+				local target_idx_list = []
+				foreach(tbl_form_info in tbl_next_sta_info.tbl_form_info_list)
+				{
+					local temp_list = station.get_idx_in_line(line, tbl_form_info.stop)
+					foreach(temp in _step_generator(temp_list))
 					{
-						// 終点の路線を延伸
-						if(target_idx_list[0] == 0)
-						{
-							// 始発駅側を延伸
-							update_line(line, from_tile, 0, pl)
-							// 拠点駅が拡張されているはずなので、着発番線を変更
-							station.change_schedule_form(next_sta.halt, tbl_next_sta_info, line.get_convoy_list()[0].needs_electrification(), false)
-							extend_next_sta = next_sta.halt
-						}else{
-							// 終点駅側を延伸
-							update_line(line, from_tile, target_idx_list[0]+1, pl)
-						}
-						// 電化
-						if(line.get_convoy_list()[0].needs_electrification())
-						{
-							local electric_tile = filter(next_sta.tile_list, @(a) a.find_object(mo_wayobj) != null)
-							local catenary = electric_tile.top().find_object(mo_wayobj).get_desc()
-							for(local ii = 0; ii < electric_tile.len(); ii++)
-							{
-								command_x.build_wayobj(pl, from_tile, electric_tile[ii], catenary)
-							}
-							if(dir_list.len() == 1)
-							{
-								local temp_list = station.trace_way(from_tile, wt_rail, dir.backward(dd), @(a) a.has_way(wt_rail))
-								command_x.build_wayobj(pl, from_tile, temp_list.top(), catenary)
-							}
-						}
-						update_flg = line
-						// 路線所属車両が複数ある、または路線が複数ある場合、隣の駅に行き違い設備を設ける
-						convoy_counter = convoy_counter + line.get_convoy_list().get_count()
-						if(convoy_counter > 1)
-						{
-							local next_sta_name = next_sta.halt.get_name()
-							local err = station.set_passing_each_other(pl, next_sta.halt)
-							if(err)
-							{
-								gui.add_message_at(pl,"failed update station at "+next_sta_name+":"+err,world.get_time())
-							}
-						}
-						// 路線所属編成で最長を取得
-						foreach(convoy in _step_generator(line.get_convoy_list()))
-						{
-							if(convoy_length < convoy.get_tile_length()){ convoy_length = convoy.get_tile_length() }
-						}
+						target_idx_list.append(temp)
 					}
 				}
 
-				// ホーム長さ調整
-				if(convoy_length > 1)
+				if(target_idx_list.len() == 1)
 				{
-					local tbl_temp = station.extend_form(pl, no_line_sta, convoy_length, [from_tile])
-					// 公共駅の場合、情報更新
-					if("halt" in tbl_temp){ no_line_sta = tbl_temp.halt }
-					// 隣接駅もホーム長さ調整
-					if(extend_next_sta)
+					// 終点の路線を延伸
+					if(target_idx_list[0] == 0)
 					{
-						local tbl_nextsta_form_info_list = tbl_next_sta_info.tbl_form_info_list
-						local form_tile_list = map(tbl_nextsta_form_info_list, @(a) a.stop)
-						station.extend_form(pl, extend_next_sta, convoy_length, form_tile_list)
+						// 始発駅側を延伸
+						update_line(line, from_tile, 0, pl)
+						// 拠点駅が拡張されているはずなので、着発番線を変更
+						station.change_schedule_form(next_sta.halt, tbl_next_sta_info, line.get_convoy_list()[0].needs_electrification(), false)
+						extend_next_sta = next_sta.halt
+					}else{
+						// 終点駅側を延伸
+						update_line(line, from_tile, target_idx_list[0]+1, pl)
+					}
+					// 電化
+					if(line.get_convoy_list()[0].needs_electrification())
+					{
+						local electric_tile = filter(next_sta.tile_list, @(a) a.find_object(mo_wayobj) != null)
+						local catenary = electric_tile.top().find_object(mo_wayobj).get_desc()
+						for(local ii = 0; ii < electric_tile.len(); ii++)
+						{
+							command_x.build_wayobj(pl, from_tile, electric_tile[ii], catenary)
+						}
+						if(dir_list.len() == 1)
+						{
+							local temp_list = station.trace_way(from_tile, wt_rail, dir.backward(dd), @(a) a.has_way(wt_rail))
+							command_x.build_wayobj(pl, from_tile, temp_list.top(), catenary)
+						}
+					}
+					update_flg = line
+					// 路線所属車両が複数ある、または路線が複数ある場合、隣の駅に行き違い設備を設ける
+					convoy_counter = convoy_counter + line.get_convoy_list().get_count()
+					if(convoy_counter > 1)
+					{
+						local next_sta_name = next_sta.halt.get_name()
+						local err = station.set_passing_each_other(pl, next_sta.halt)
+						if(err)
+						{
+							gui.add_message_at(pl,"failed update station at "+next_sta_name+":"+err,world.get_time())
+						}
+					}
+					// 路線所属編成で最長を取得
+					foreach(convoy in _step_generator(line.get_convoy_list()))
+					{
+						if(convoy_length < convoy.get_tile_length()){ convoy_length = convoy.get_tile_length() }
 					}
 				}
-				if(update_flg){ break }
+			}
+
+			// ホーム長さ調整
+			if(convoy_length > 1)
+			{
+				local tbl_temp = station.extend_form(pl, no_line_sta, convoy_length, [from_tile])
+				// 公共駅の場合、情報更新
+				if("halt" in tbl_temp){ no_line_sta = tbl_temp.halt }
+				// 隣接駅もホーム長さ調整
+				if(extend_next_sta)
+				{
+					local tbl_nextsta_form_info_list = tbl_next_sta_info.tbl_form_info_list
+					local form_tile_list = map(tbl_nextsta_form_info_list, @(a) a.stop)
+					station.extend_form(pl, extend_next_sta, convoy_length, form_tile_list)
+				}
 			}
 		}
 		if(update_flg){ return update_flg }
