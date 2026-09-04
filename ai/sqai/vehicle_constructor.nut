@@ -1097,14 +1097,12 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 		res_list = sort(res_list, @(a,b) a.routes.len() <=> b.routes.len())
 		
 		local convoy_list = line.get_convoy_list()
+		local tile_list = map(res_list[0].routes, @(a) finder.coord2D_to_tile(a))
 		while(1)
 		{
-			local onrail_flg_list = []
-			foreach(current_convoy in _step_generator(convoy_list))
-			{
-				onrail_flg_list.append(is_member(current_convoy.get_pos(), res_list[0].routes))
-			}
-			if(!(is_member(true, onrail_flg_list))){ break }
+			local on_convoy_tile_list = filter(tile_list, @(a) a.find_object(mo_train))
+			if(on_convoy_tile_list.len() == 0){ break }
+			sleep()
 		}
 
 		depot.start_convoy(pl, convoy)
@@ -1650,7 +1648,7 @@ if(debug_mode){
 			// ホームを使用している路線数が最小のホームを選択
 			local tbl_form_info = station.get_line_using_track(outward_root[ii].halt, 2)
 			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
-			if(tbl_form_info.len() > 1)
+			if(tbl_form_info.len() > 1 && ii != outward_root.len() - 1)
 			{
 				tbl_form_info = filter(tbl_form_info, @(a) !(is_member(a.stop, station.get_track_list(outward_root[ii].stop))))
 			}

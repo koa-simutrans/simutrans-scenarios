@@ -1854,12 +1854,12 @@ return err }
 			{
 				dir_list = finder.divide_dir(tbl_form_info_list[0].dir)
 			}
-			local next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[0], be_electrified, [])
-			if(next_sta_list.len() == 0 && dir_list.len() > 1)
+			local next_sta_list = []
+			foreach(dd in dir_list)
 			{
-				next_sta_list = search_next_sta(halt_info, tbl_form_info_list[0].stop, dir_list[1], be_electrified, [])
+				next_sta_list = combine(next_sta_list, search_next_sta(halt_info, tbl_form_info_list[0].stop, dd, be_electrified, []))
 			}
-			foreach(tbl_form_info in tbl_form_info_list)
+			foreach(tbl_form_info in _step_generator(tbl_form_info_list))
 			{
 				tbl_form_info.next_sta_list <- []
 			}

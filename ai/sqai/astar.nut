@@ -616,6 +616,12 @@ class astar_builder extends astar
 					local bldg_tile = filter(under_pass_area, @(a) a.get_halt() == null || (a.get_halt() && !(a.has_ways())))
 					bldg_tile = filter(bldg_tile, @(a) a.find_object(mo_building) != null)
 					if(bldg_tile.len() != 0){ break }
+					// 線路の場合、ホームの上に架橋すると二次元経路探索のastar_route_finderが誤計算する恐れがある
+					if(way != null && way.get_waytype() == wt_rail)
+					{
+						bldg_tile = filter(under_pass_area, @(a) a.get_halt() && a.has_way(wt_rail))
+						if(bldg_tile.len() != 0){ break }
+					}
 					// オーバーパスする線路がある時、複線化用地を確保してあげる
 					local under_pass_rail_flg = check_under_pass_single_rail(under_pass_area, d)
 					if(bridge_len < 4 && under_pass_rail_flg > 0)
