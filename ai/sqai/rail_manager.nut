@@ -89,11 +89,10 @@ class rail_manager_t extends manager_t
 			factory_tile_list = filter(factory_tile_list, @(a) a.is_ground())
 			if(factory_tile_list.len() != 0)
 			{
-				// s“à‚ÌY‹Æ‚ÍœŠO
-//				local nearest_city = finder.find_nearest_city(factory_tile_list.top())
-//				local city_limit_list = finder.base_to_tile_list(nearest_city.get_pos_nw(), abs(nearest_city.get_pos_nw().x-nearest_city.get_pos_se().x), abs(nearest_city.get_pos_nw().y-nearest_city.get_pos_se().y), 1)
-//				local cover_area_list = finder.check_covered_area(factory_tile_list, city_limit_list)
-//				if(cover_area_list.len() == factory_tile_list.len()){ continue }
+				// ƒtƒB[ƒ‹ƒh‚â‹ó‚«’nˆÈŠO‚ÉˆÍ‚Ü‚ê‚½Y‹Æ‚ÍœŠO
+				local neighbor_tile_list = finder.bldg_neighbor_tile_list(factory_tile_list)
+				neighbor_tile_list = filter(neighbor_tile_list, @(a) a.is_empty() || a.find_object(mo_field) != null)
+				if(neighbor_tile_list.len() == 0){ continue }
 				local flg = true
 				foreach(tile in _step_generator(factory_tile_list))
 				{
@@ -115,11 +114,10 @@ class rail_manager_t extends manager_t
 		foreach(att in att_list)
 		{
 			local att_tile_list = att.get_tile_list()
-			// s“à‚Ì–¼Š‹ŒÕ‚ÍœŠO
-//			local nearest_city = finder.find_nearest_city(att_tile_list.top())
-//			local city_limit_list = finder.base_to_tile_list(nearest_city.get_pos_nw(), abs(nearest_city.get_pos_nw().x-nearest_city.get_pos_se().x), abs(nearest_city.get_pos_nw().y-nearest_city.get_pos_se().y), 1)
-//			local cover_area_list = finder.check_covered_area(att_tile_list, city_limit_list)
-//			if(cover_area_list.len() == att_tile_list.len()){ continue }
+			// ‹ó‚«’nˆÈŠO‚ÉˆÍ‚Ü‚ê‚½–¼Š‹ŒÕ‚ÍœŠO
+			local neighbor_tile_list = finder.bldg_neighbor_tile_list(att_tile_list)
+			neighbor_tile_list = filter(neighbor_tile_list, @(a) a.is_empty())
+			if(neighbor_tile_list.len() == 0){ continue }
 			local flg = true
 			foreach(tile in _step_generator(att_tile_list))
 			{
@@ -247,6 +245,7 @@ gui.add_message_at(pl,"aaa"+already_station.get_name()+",["+coord_to_string(temp
 								// Œšİ¸”s‚µ‚½‚È‚ç“P‹
 								if(temp_end)
 								{
+gui.add_message_at(pl,"aaaa["+coord_to_string(temp_start.tile)+"]",temp_start.tile)
 									if(!(compare_coord(temp_start.tile, temp_end)))
 									{
 										local asf = astar_route_finder(wt_rail)
@@ -1020,6 +1019,7 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 						local temp_list = station.get_boundary_station_pos(tbl_sta_info.tbl_form_info_list[0].stop, 4)
 						temp_list = filter(temp_list, @(a) dir.is_single(a.get_way_dirs(wt_rail)))
 						rtn.tile <- temp_list[0]
+						rtn.already_halt <- null
 					}else{
 						// 1”Ô–Ú‚ÌŒo—R’n‚Ìê‡AŒÄ‚Ño‚µŒ³‚Å•ªŠò‰wì‚Á‚Ä‚é‚Ì‚ÅˆÈ~‚Ìˆ—ƒXƒLƒbƒv
 						if(compare_coord(rtn.tile, start))
@@ -1134,6 +1134,7 @@ gui.add_message_at(pl,"ind:"+kk+",["+coord_to_string(end)+"],["+coord_to_string(
 			// ‰wŠÔü˜H•~İ¸”s
 			if(!(compare_coord(rtn.tile, restart)))
 			{
+gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 				local asf = astar_route_finder(wt_rail)
 				local res = asf.search_route([build_start_tile], [rtn.tile])
 				if(!("err" in res))

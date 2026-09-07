@@ -406,6 +406,10 @@ class astar_builder extends astar
 			if ((cnode.flag == 1 || cnode.flag == 12) &&  d != cnode.dir) {
 				continue
 			}
+			// do not slope side
+			if (cnode.flag == 0 && from.get_slope != slope.flat && !(check_slope_dir(from.get_slope(), d))) {
+				continue
+			}
 			local to = from.get_neighbour(wt_all, d)
 			
 			// 隣接タイルが取得できなかったら、対象タイル・隣接タイルが陸上なら処理続行
@@ -565,9 +569,6 @@ class astar_builder extends astar
 					local cost   = cnode.cost + move
 					local weight = cost + dist
 					local node = ab_node(to, cnode, cost, dist, d, flat_field_flg)
-//if(way != null && way.get_waytype() == wt_rail && dist < 70){
-//gui.add_message_at(our_player,"["+cnode.x+","+cnode.y+","+cnode.z+"]->["+coord_to_string(to)+"],cost:"+cost+",move:"+move+",dist:"+dist+",cdir:"+cnode.dir+",cflag:"+cnode.flag+",flag:"+flat_field_flg,to)
-//}
 					add_to_open(node, weight)
 					continue
 				}
@@ -694,11 +695,6 @@ class astar_builder extends astar
 			local is_tunnel_0 = tile_x(route[0].x, route[0].y, route[0].z).find_object(mo_tunnel)
 			local is_tunnel_1 = is_tunnel_0
 
-//if(way != null && is_member(2, map(route, @(a) a.flag))){
-//for (local i = 1; i<route.len(); i++) {
-//  local aaa=tile_x(route[i].x, route[i].y, route[i].z)
-//  gui.add_message_at(our_player,"["+coord_to_string(aaa)+"],flag:"+route[i].flag,aaa)
-//}}
 			for (local i = 1; i<route.len(); i++) {
 				// remove any fields on our routes (only start & end currently)
 

@@ -1759,7 +1759,9 @@ return err }
 				local other_com_occupy_tile = filter(temp_tile_list, @(a) !(finder.can_remove_all_objects(a, pl)))
 				if(other_com_occupy_tile.len() != 0){ continue }
 
-				// 線路敷設開始位置、線路敷設終了位置で道路が直交する場合、位置をずらす
+				// 以下のいずれかの場合、位置をずらす
+				// ・線路敷設開始位置、線路敷設終了位置で道路が直交する
+				// ・線路敷設開始位置、線路敷設終了位置の拡張前の線路に信号がある
 				local temp_d = (coord(temp_tile_list[0].x - temp_tile_list[1].x, temp_tile_list[0].y - temp_tile_list[1].y)).to_dir()
 				local blnFlg = false
 				while(temp_tile_list[0].has_way(wt_road))
@@ -1777,6 +1779,10 @@ return err }
 						break
 					}
 				}
+				while(finder.coord2D_to_tile(finder.move_coord(temp_tile_list[0], dir.backward(vertical_dir))).find_object(mo_signal))
+				{
+					temp_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list[0], temp_d))
+				}
 				if(!(blnFlg))
 				{
 					while(temp_tile_list.top().has_way(wt_road))
@@ -1793,6 +1799,10 @@ return err }
 							blnFlg = true
 						 	break
 						}
+					}
+					while(finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), dir.backward(vertical_dir))).find_object(mo_signal))
+					{
+						temp_tile_list[temp_tile_list.len()-1] = finder.coord2D_to_tile(finder.move_coord(temp_tile_list.top(), dir.backward(temp_d)))
 					}
 				}
 				if(blnFlg){ continue }
@@ -1846,7 +1856,7 @@ return err }
 				tbl_form_info.next_sta_list <- next_sta_list
 			}
 		}else{
-			// 終端駅が該当
+			// 終端駅or拠点駅が該当
 			local halt_info = { halt = halt, dir = tbl_form_info_list[0].dir }
 			local dir_list = map(tbl_form_info_list, @(a) a.dir)
 			dir_list = filter(dir_list, @(a) dir.is_single(a))

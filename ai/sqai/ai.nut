@@ -698,7 +698,7 @@ if(debug_mode)
 			{
 				// 鉄道建設できなかった区間はバス代行
 				local adpot_list = []
-				local idx = 1
+				local idx = 0
 				if(new_root != null)
 				{
 					adpot_list.append(new_root.len()-1)
@@ -707,7 +707,7 @@ if(debug_mode)
 
 				new_root = temp_new_root
 				// 鉄道が通っている町は並行しないように整理
-				for(local ii = idx; ii < temp_new_root.len(); ii++)
+				for(local ii = idx + 1; ii < temp_new_root.len(); ii++)
 				{
 					local station_bus_stop =finder.get_bus_terminal(city_x(city_info[temp_new_root[ii]].townhall.x, city_info[temp_new_root[ii]].townhall.y), our_player)
 					if(station_bus_stop)
@@ -728,7 +728,7 @@ if(debug_mode)
 				switch(adpot_list.len())
 				{
 					case 0:
-						
+						temp_new_root = []	// 全ルートが鉄道と並行している
 					break
 					case 1:
 						temp_new_root = temp_new_root.slice(adpot_list[0])
