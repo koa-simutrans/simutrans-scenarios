@@ -331,13 +331,21 @@ class vehicle_constructor_t extends node_t
 		if(sche_len < idx){ return line }
 		if(idx == 0)
 		{
+			local load = schedule_entry[0].load
+			local wait = schedule_entry[0].wait
+			schedule_entry[0].load = 0
+			schedule_entry[0].wait = 0
 			schedule_entry.append(schedule_entry[0])
-			schedule_entry.insert(idx, schedule_entry_x(stop, 0, 0) )
+			schedule_entry.insert(idx, schedule_entry_x(stop, load, wait) )
 		}else{
 			if(sche_len / 2 + 1 == idx)
 			{
+				local load = schedule_entry[idx-1].load
+				local wait = schedule_entry[idx-1].wait
+				schedule_entry[idx-1].load = 0
+				schedule_entry[idx-1].wait = 0
 				schedule_entry.insert(idx, schedule_entry[idx-1] )
-				schedule_entry.insert(idx, schedule_entry_x(stop, 0, 0) )
+				schedule_entry.insert(idx, schedule_entry_x(stop, load, wait) )
 			}else{
 				if(idx > sche_len / 2 + 1){ idx =  2 * (idx - (sche_len / 2 + 1))}
 				schedule_entry.insert(sche_len - idx + 1, schedule_entry_x(stop, 0, 0) )
@@ -640,7 +648,7 @@ class vehicle_constructor_t extends node_t
 try{
 if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_pas+", "+line.get_waytype(), (stop.get_tile_list())[0])}
 }catch(e){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_pas+", "+line.get_waytype(), world.get_time())}
-				if(convoy_cap * 2 < wait_pas)
+				if(convoy_cap * 4 < wait_pas)
 				{
 					if(line.get_waytype() == wt_road)
 					{
@@ -695,33 +703,51 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 						// “¹˜H‚‘¬‰»
 						road_info.update_road(line)
 					} else if ( line.get_waytype() == wt_rail ) {
-						local stop_pos = (stop.get_tile_list())[0]
-						solute_overflow_station(line, pl)
-						// Œö‹¤‰w‚Ìê‡Aƒz[ƒ€‰„L‚Æ‚©‚·‚é‚Æ‰wî•ñ‚ªXV‚³‚ê‚é
-						stop = stop_pos.get_halt()
-						// “S“¹‚‘¬‰»
-						local way_speed = finder.coord2D_to_tile(schedule_entries[0]).get_way(wt_rail).get_desc().get_topspeed()
-						local convoy_topspeed = 0
-						foreach(convoy in convoy_list)
+						if(schedule_entries[schedule_entries.len()/2].wait == 0)
 						{
-							local speed_list = map(convoy.get_vehicles(), @(a) a.get_topspeed())
-							speed_list = sort(speed_list, @(a,b) a <=> b)
-							if(convoy_topspeed < speed_list[0]){ convoy_topspeed = speed_list[0] }
-						}
-						local rail_info = rail_manager_t()
-						if(way_speed < convoy_topspeed)
-						{
-							rail_info.update_rail(line)
-						}
-						local wayobj = finder.coord2D_to_tile(schedule_entries[schedule_entries.len()/2]).find_object(mo_wayobj)
-						local wayobj_speed = 0
-						if(wayobj)
-						{
-							wayobj_speed = wayobj.get_desc().get_topspeed()
-						}
-						if(wayobj_speed > 0 && wayobj_speed < convoy_topspeed)
-						{
-							rail_info.electrify_line(line)
+							local stop_pos = (stop.get_tile_list())[0]
+							solute_overflow_station(line, pl)
+							// Œö‹¤‰w‚Ìê‡Aƒz[ƒ€‰„L‚Æ‚©‚·‚é‚Æ‰wî•ñ‚ªXV‚³‚ê‚é
+							stop = stop_pos.get_halt()
+							// “S“¹‚‘¬‰»
+							local way_speed = finder.coord2D_to_tile(schedule_entries[0]).get_way(wt_rail).get_desc().get_topspeed()
+							local convoy_topspeed = 0
+							foreach(convoy in convoy_list)
+							{
+								local speed_list = map(convoy.get_vehicles(), @(a) a.get_topspeed())
+								speed_list = sort(speed_list, @(a,b) a <=> b)
+								if(convoy_topspeed < speed_list[0]){ convoy_topspeed = speed_list[0] }
+							}
+							local rail_info = rail_manager_t()
+							if(way_speed < convoy_topspeed)
+							{
+								rail_info.update_rail(line)
+							}
+							local wayobj = finder.coord2D_to_tile(schedule_entries[schedule_entries.len()/2]).find_object(mo_wayobj)
+							local wayobj_speed = 0
+							if(wayobj)
+							{
+								wayobj_speed = wayobj.get_desc().get_topspeed()
+							}
+							if(wayobj_speed > 0 && wayobj_speed < convoy_topspeed)
+							{
+								rail_info.electrify_line(line)
+							}
+						}else{
+							local target = schedule_entries.len()/2
+							if ( schedule_entries[target].wait > 88 )
+							{
+								// change waiting time and load
+								schedule_entries[target].wait = schedule_entries[target].wait - 88
+								local schedule = schedule_x(line.get_waytype(), schedule_entries)
+								line.change_schedule(pl, schedule)
+							} else if ( schedule_entries[target].wait == 88 ){
+								// remove waiting time and load
+								schedule_entries[target].wait = 0
+								schedule_entries[target].load = 0
+								local schedule = schedule_x(line.get_waytype(), schedule_entries)
+								line.change_schedule(pl, schedule)
+							}
 						}
 					}
 				}
@@ -1332,11 +1358,17 @@ if(debug_mode){gui.add_message_at(pl, line.get_name()+". "+convoy_cap+", "+wait_
 			} else {
 				// change schedule
 				// change waiting time
+				local way_type = line.get_waytype()
 				local schedule_entries = line.get_schedule().entries
-				if (schedule_entries[0].wait > 0 && schedule_entries[0].wait < 2000 )
+				local idx = 0
+				if(way_type == wt_rail)
 				{
-					schedule_entries[0].wait = schedule_entries[0].wait + 88
-					local schedule = schedule_x(line.get_waytype(), schedule_entries)
+					idx = schedule_entries.len() / 2
+				}
+				if (schedule_entries[idx].wait > 0 && schedule_entries[idx].wait < 2000 )
+				{
+					schedule_entries[idx].wait = schedule_entries[idx].wait + 88
+					local schedule = schedule_x(way_type, schedule_entries)
 					line.change_schedule(pl, schedule)
 				}
 			}
@@ -1682,7 +1714,12 @@ if(debug_mode){
 		local schedule = schedule_x(wt_rail, [])
 		for(local ii = 0; ii < stop_list.len(); ii++)
 		{
-			schedule.entries.append( schedule_entry_x(stop_list[ii], 0, 0) )
+			if(ii == stop_list.len() / 2 && stop_list.len() < 5)
+			{
+				schedule.entries.append( schedule_entry_x(stop_list[ii], 100, 968) )
+			}else{
+				schedule.entries.append( schedule_entry_x(stop_list[ii], 0, 0) )
+			}
 		}
 		if(merge_line_list.len() > 0)
 		{

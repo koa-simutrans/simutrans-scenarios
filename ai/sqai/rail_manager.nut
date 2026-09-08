@@ -1489,7 +1489,7 @@ gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 				if(idx_list[ii+1] - idx_list[ii] == 1)
 				{
 					// V‰w‚ª˜HüI“_‰w—×Ú‚Ìê‡Aî•ñC³
-					if(idx_list[ii] == schedule_entries.len() - 1){ idx_list[ii+1] = 0 }
+					if(idx_list[ii+1] == schedule_entries.len()){ idx_list[ii+1] = 0 }
 					local jj = 0
 					for(jj = 0; jj < tbl_form_info_list.len(); jj++)
 					{

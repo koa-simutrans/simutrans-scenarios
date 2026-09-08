@@ -485,6 +485,11 @@ class astar_builder extends astar
 									continue
 								}
 							}
+							if (to.find_object(mo_depot_road)) {
+								if(!(is_member(d, finder.divide_dir(dir.double(to.get_way_dirs(wt_road)))))) {
+									continue
+								}
+							}
 						}else{
 							move += 8
 						}

@@ -2050,7 +2050,7 @@ return err }
 		// 本線に収束する側の線路接続
 		local end_tile = finder.coord2D_to_tile(finder.move_coord(branch_rail_list[0], dir.backward(tbl_expand_form_info.expand_dir)))
 		local d = dir.backward(branch_rail_list[0].get_way_dirs(wt_rail))
-		if(!(dir.is_single(end_tile.get_way_dirs(wt_rail))))
+		if(!(dir.is_single(end_tile.get_way_dirs(wt_rail))) && dir.is_single(d))
 		{
 			// 接続先に既にポイントがある場合、ポイント位置を調整
 			local change_point_tile_list = []
@@ -2082,8 +2082,14 @@ return err }
 		if(filter(sta_info.sta_office_tile_list, @(a) a.has_way(wt_rail)).len() == 0)
 		{
 			local sub_line_pos = finder.coord2D_to_tile(finder.move_coord(branch_rail_list[1], dir.backward(tbl_expand_form_info.expand_dir)))
+			local n = 1
+			while(!(sub_line_pos.has_way(wt_rail)))
+			{
+				sub_line_pos = finder.coord2D_to_tile(finder.move_coord(sub_line_pos, dir.backward(d)))
+				n++
+			}
 			// 副本線から1マス外方に延長
-			local extend_pos = finder.coord2D_to_tile(finder.move_coord(sub_line_pos, d))
+			local extend_pos = finder.coord2D_to_tile(finder.move_coord(sub_line_pos, d, n))
 			if(extend_pos == null){ return }
 			extend_pos = expand_straight_rail(pl, sub_line_pos, extend_pos)
 			if(extend_pos == null)

@@ -454,13 +454,8 @@ gui.add_message_at(our_player, "test start!", world.get_time())
 local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
-local aaa = finder.coord2D_to_tile(coord(235,139))
-local bbb = finder.coord2D_to_tile(coord(240,139))
-local asf = astar_route_finder(wt_rail)
-local res = asf.search_route([aaa], [bbb])
-foreach(iii in res.routes){
-  gui.add_message_at(our_player, "["+coord3d_to_string(iii)+"]",iii)
-}
+local aaa = finder.coord2D_to_tile(coord(455,90))
+local bbb = station.update_junction_station(our_player, aaa.get_halt(), finder.coord2D_to_tile(coord(485,90)))
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)
