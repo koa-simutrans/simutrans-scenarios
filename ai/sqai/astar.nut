@@ -548,12 +548,11 @@ class astar_builder extends astar
 						flat_field_flg = -1
 					}
 				}else{
-					
 					if(to.is_empty() || ground_on_flg)
 					{
 						if(check_slope_dir(to.get_slope(), d))
 						{
-							if(to.get_slope() == slope.flat)
+							if(to.get_slope() == slope.flat && !(cnode.flag == 2 && cnode.dir != d))
 							{
 								flat_field_flg = 0
 							}else{
@@ -770,6 +769,7 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 								err = null
 							}else{
 								gui.add_message_at(our_player, "aaaFailed to build " + way.get_name() + " from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+				dump_partial_routes(route, i)
 								remove_wayline(route, (i - 1), way.get_waytype())
 							}
 						}
@@ -810,6 +810,7 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 								err = null
 							}else{
 								gui.add_message_at(our_player, "Failed to build " + way.get_name() + " from " + coord3d_to_string(route[i-1]) + " to " + coord3d_to_string(route[i]) +"\n" + err, route[i])
+				dump_partial_routes(route, i)
 								// remove way
 								remove_wayline(route, (i - 1), way.get_waytype())
 							}
@@ -820,6 +821,7 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
 					if (err) {
 						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+		dump_partial_routes(route, i)
 						remove_wayline(route, (i - 1), way.get_waytype())
 					}
 				}
@@ -835,6 +837,7 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
 					if (err) {
 						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+		dump_partial_routes(route, i)
 						remove_wayline(route, (i - 1), way.get_waytype())
 					}
 				}
@@ -846,6 +849,16 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 		}
 		print("No route found")
 		return { err =  "No route" }
+	}
+}
+
+/* デバッグ用 建設失敗時に失敗箇所前後のデータを出力 */
+function dump_partial_routes(routes, idx)
+{
+	local n = 10
+	for(local ii = idx - n; ii <= idx + n; ii++)
+	{
+		gui.add_message_at(our_player,"debug:["+coord_to_string(routes[ii])+"],flag:"+routes[ii].flag,routes[ii])
 	}
 }
 

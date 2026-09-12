@@ -1732,7 +1732,7 @@ if(debug_mode){
 			// V˜Hü‚É“‡
 			merge_line_list[0].change_schedule(pl, schedule)
 			local suc = true
-			if(merge_line_list[0].get_convoy_list()[0].needs_electrification())
+			if(merge_line_list[0].get_convoy_list().get_count() > 0 && merge_line_list[0].get_convoy_list()[0].needs_electrification())
 			{
 				local rail_info = rail_manager_t()
 				suc = rail_info.electrify_line(merge_line_list[0])

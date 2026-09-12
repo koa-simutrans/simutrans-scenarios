@@ -2026,6 +2026,39 @@ return err }
 			}
 		}
 
+		// 未使用ホームがあれば、それを返す
+		if(tbl_form_info_list.len() > 2)
+		{
+			local tbl_stop_info_list = get_line_using_track(halt, 2)
+			tbl_stop_info_list = filter(tbl_stop_info_list, @(a) a.line_list.len() == 0)
+			foreach(tbl_stop_info in tbl_stop_info_list)
+			{
+				local tbl_form_info = filter(tbl_form_info_list, @(a) compare_coord(a.stop, tbl_stop_info.stop))
+				// 未使用ホームは方向が単一だし、必ずポイントor終端にたどり着くはず
+				local trace_tile_list = trace_way(tbl_form_info[0].stop, wt_rail, dir.backward(tbl_form_info[0].dir), @(a) 1)
+				rtn.enter <- trace_tile_list.top()
+
+				local d = tbl_form_info_list[0].dir
+				local temp_exit = tbl_form_info_list[0].stop
+				local trace_tile_list = trace_way(tbl_form_info[0].stop, wt_rail, d, @(a) 1)
+				while(!(dir.is_single(trace_tile_list.top().get_way_dirs(wt_rail))))
+				{
+					d = trace_tile_list.top().get_way_dirs(wt_rail) - dir.backward(d)
+					
+					// 駅の外方2マス先からトレースを再開し、線路終端を探索
+					local temp_tile = finder.coord2D_to_tile(finder.move_coord(trace_tile_list.top(), d, 2))
+					if(temp_tile == null){ break }
+					trace_tile_list = trace_way(temp_tile, wt_rail, d, @(a) 1)
+				}
+				if(dir.is_single(trace_tile_list.top().get_way_dirs(wt_rail)))
+				{
+					rtn.exit <- trace_tile_list.top()
+					rtn.halt <- halt
+					return rtn
+				}
+			}
+		}
+
 		// 更にホーム追加
 		local tbl_expand_form_info = expand_station(pl, halt)
 		if(tbl_expand_form_info == null){ return }

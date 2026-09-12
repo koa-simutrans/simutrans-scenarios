@@ -220,56 +220,15 @@ class rail_manager_t extends manager_t
 						tbl_sta_info.new_form_end_rail <- station.get_boundary_station_pos(tbl_form_info_list[0].stop, 4)
 						start = filter(tbl_sta_info.new_form_end_rail, @(a) dir.is_single(a.get_way_dirs(wt_rail))).top()
 						// ––’[‰w‚©‚ç‰„L‚·‚é‚Ì‚Å•ªŠò‰w‚Ìî•ñÁ‹Ž
-						if(prev_halt){ prev_halt = null }
+						prev_halt = null
 						continue
 					}else{
-						// ‘O‚Ì‰w`“–‰w‚É‚Ü‚¾ŒÇ—§‚µ‚Ä‚¢‚é–¼Š‹ŒÕEŽY‹Æ‚ ‚ê‚Îü˜H•~Ý
-						local temp_start = null
-						if(prev_halt || start)
-						{
-							if(prev_halt)
-							{
-								start = finder.check_sta_freight_property(prev_halt, wt_rail, 2).top()
-							}
-							temp_start = insert_ind_attract(start, city_info[root_info[ii]].townhall, ind_att_list, pl, 2)
-							if(temp_start)
-							{
-								if(temp_start.add_list.len() != 0)
-								{
-									ind_att_list = filter(ind_att_list, @(a) !(is_member(a, temp_start.add_list)))
-								}
-								local tbl_update_info = build_rail_junction(already_station, temp_start.tile, pl)
-								if(tbl_update_info == null){ break }
-gui.add_message_at(pl,"aaa"+already_station.get_name()+",["+coord_to_string(temp_start.tile)+"],["+coord_to_string(tbl_update_info.exit)+"]",temp_start.tile)
-								local temp_end = set_rail_between_station(temp_start.tile, tbl_update_info.exit, pl)
-								// ŒšÝŽ¸”s‚µ‚½‚È‚ç“P‹Ž
-								if(temp_end)
-								{
-gui.add_message_at(pl,"aaaa["+coord_to_string(temp_start.tile)+"]",temp_start.tile)
-									if(!(compare_coord(temp_start.tile, temp_end)))
-									{
-										local asf = astar_route_finder(wt_rail)
-										local res = asf.search_route([temp_start.tile], [temp_end])
-										if ("routes" in res)
-										{
-											res.routes.remove(0)
-											local tile_list = map(res.routes, @(a) finder.coord2D_to_tile(a))
-											remove_rail(tile_list, pl)
-										}
-									}
-								}else{
-									temp_start = null
-								}
-							}
-							start = null
-						}
 						prev_halt = already_station
-						// ŒšÝ¬Œ÷Žž‚Ítemp_start‚Ínull
-						if(temp_start){ break }
 					}
 					if("new_form_end_rail" in tbl_sta_info)
 					{
 						start = filter(tbl_sta_info.new_form_end_rail, @(a) dir.is_single(a.get_way_dirs(wt_rail))).top()
+						prev_halt = null
 					}else{
 						continue
 					}
@@ -1061,6 +1020,8 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 				}
 				rtn.already_halt <- null
 				rtn.tile <- tbl_update_info.exit
+				// ˆÈ~ŒšÝŽ¸”s‚µ‚½Žž‚Énull‚ð•Ô‚¹‚é‚æ‚¤‚É
+				start = rtn.tile
 			}
 
 			// ü˜H•~ÝŠJŽn’n“_‚©‚çŒo—R’n‚Ö‚Ì•ûŒü 
@@ -1312,6 +1273,22 @@ gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 			area = filter(area, @(a) !(is_member(a, no_prohibit_area_list)))
 			prohibit_area = combine(prohibit_area, area)
 		}
+		// ƒXƒCƒbƒ`ƒoƒbƒN—p‚ÉŒo˜H’Tõ‚Ì‹–‰Â‚µ‚½Šù‘¶ü˜Hƒ^ƒCƒ‹‚Í‰w\“à‚Ì‚½‚ßA¶‰Eƒ^ƒCƒ‹‚Í
+		// ‹ÖŽ~ƒGƒŠƒA‚É’Ç‰Á
+		foreach(rail_OK_area in rail_OK_area_list)
+		{
+			if(is_member(rail_OK_area, tile_list)){ continue }
+			local neighbor_tile = finder.coord2D_to_tile(finder.move_coord(rail_OK_area, finder.rotate_right_angle(start_rail_dir, true)))
+			if(neighbor_tile != null)
+			{
+				prohibit_area.append(neighbor_tile)
+			}
+			neighbor_tile = finder.coord2D_to_tile(finder.move_coord(rail_OK_area, finder.rotate_right_angle(start_rail_dir, false)))
+			if(neighbor_tile != null)
+			{
+				prohibit_area.append(neighbor_tile)
+			}
+		}
 
 		as.prohibit_area = prohibit_area
 		
@@ -1392,7 +1369,29 @@ gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 						rtn = halt_tile_list.top()
 						dist = abs(halt_tile_list.top().x-to.x) + abs(halt_tile_list.top().y-to.y)
 					}
+					// ƒgƒŒ[ƒX––’[‚ªƒ|ƒCƒ“ƒg‚Ìê‡A•Ê‚Ì‰w\“à‚Ì‰Â”\«‚ª‚ ‚è
+					// ‚»‚Ì‰w‚ð•ªŠò‰wŒó•â‚Æ‚·‚é
+					d = trace_list.top().get_way_dirs(wt_rail)
+					if(trace_list.len() > settings.get_station_coverage() * 2)
+					{
+						d = d - coord(trace_list[trace_list.len()-2].x-trace_list.top().x, trace_list[trace_list.len()-2].y-trace_list.top().y).to_dir()
+						if(dir.is_threeway(trace_list.top().get_neighbour(wt_rail, d).get_way_dirs(wt_rail)))
+						{
+							local temp_halt = finder.find_nearest_halt(trace_list.top(), [wt_rail], 2, pl)
+							if(temp_halt && !(finder.is_same_halt(halt, temp_halt)))
+							{
+								halt_tile_list = finder.check_sta_freight_property(temp_halt, wt_rail, 2)
+								local temp_dist = abs(halt_tile_list.top().x-to.x) + abs(halt_tile_list.top().y-to.y)
+								if(temp_dist < dist)
+								{
+									rtn = halt_tile_list.top()
+									dist = temp_dist
+								}
+							}
+						}
+					}
 					if(trace_list.len() < sta_width){ continue }
+					
 					// sta_width/2•ª‘OŒãƒ^ƒCƒ‹‚ª“¯‚¶Œü‚«‚È‚çV‰wÝ’uŒó•âƒ^ƒCƒ‹‚Æ‚·‚é
 					for(local ii = sta_width / 2; ii < trace_list.len() - sta_width / 2; ii++)
 					{

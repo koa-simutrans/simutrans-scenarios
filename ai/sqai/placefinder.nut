@@ -202,7 +202,6 @@ class finder {
 	{
 		// プレイヤー会社所属駅or公共駅一覧取得(バス停付き)
 		local halt_list = filter(halt_list_x(), @(a) a.get_owner().nr == pl.nr || a.get_owner().nr == 1)
-		if(halt_list.len() == 0){ return }
 		halt_list = filter(halt_list, @(a) check_sta_freight_property(a, wt_rail, 2).len() != 0 && check_sta_freight_property(a, wt_road, 2).len() != 0)
 		if(halt_list.len() == 0){ return }
 		// 引数の町役場が近い駅一覧取得
@@ -1303,6 +1302,10 @@ class finder {
 				case mo_pillar:
 				if(obj.get_owner().nr != pl.nr){ rtn = false }
 				return rtn
+				
+				case mo_field:
+				if(tile.remove_object(pl, mo_field)){ rtn = false }
+				return rtn
 			}
 		}
 		return rtn
@@ -1319,6 +1322,24 @@ class finder {
 		local distance = world.get_size().x + world.get_size().y
 		local city_info = get_nearest(city_list_x(), distance, @(a) abs(pos.x - a.get_pos().x) + abs(pos.y - a.get_pos().y))
 		return city_info[0]
+	}
+
+	/*********************************************
+	 * 選択しているタイルに最も近い駅を取得
+	 * 引数：タイル(Coord)、線タイプリスト(enumのリスト)、対象貨物属性(0:荷物、1:郵便、2:旅客)、プレイヤー会社(player_x)
+	 * 戻り値：駅(halt_x)
+	 *********************************************/
+	static function find_nearest_halt(pos, way_type_list, freight, pl)
+	{
+		local distance = world.get_size().x + world.get_size().y
+		local halt_list = filter(halt_list_x(), @(a) is_member(a.get_owner().nr, [1, pl.nr]))
+		foreach(way_type in way_type_list)
+		{
+			halt_list = filter(halt_list, @(a) check_sta_freight_property(a, way_type, freight).len() != 0)
+		}
+		if(halt_list.len() == 0){ return }
+		halt_list = get_nearest(halt_list, distance, @(a) abs(pos.x - a.get_tile_list().top().x) + abs(pos.y - a.get_tile_list().top().y))
+		return halt_list[0]
 	}
 
 
