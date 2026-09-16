@@ -474,6 +474,44 @@ gui.add_message_at(pl,ii+"."+jj+".["+coord_to_string(sta_info_list[jj].c_in)+"]:
 	function build_rail_junction(prev_halt, to_tile, pl)
 	{
 		local station = station_manager_t()
+		// 第一引数が例えば町の駅を指定していても
+		// 実際はより目的地に近い名所旧跡・産業の既存駅がある場合がある
+		local blnFlg = false
+		do
+		{
+			blnFlg = false
+			local dist = abs(prev_halt.get_tile_list().top().x-to_tile.x)+abs(prev_halt.get_tile_list().top().y-to_tile.y)
+			local tbl_sta_info = station.get_station_info(prev_halt, 2, false)
+			local tbl_form_info_list = tbl_sta_info.tbl_form_info_list
+			local dir_list = []
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				dir_list = combine(dir_list, finder.divide_dir(tbl_form_info.dir))
+			}
+			dir_list = unique(dir_list)
+			foreach(dd in dir_list)
+			{
+				local next_sta_list = []
+				foreach(tbl_form_info in tbl_form_info_list)
+				{
+					local halt_info = { halt = prev_halt, dir = dd }
+					next_sta_list = station.search_next_sta(halt_info, tbl_form_info.stop, dd, false, [])
+					// 隣接駅情報が取得できると基本的に同じ結果になる(全てのホームは線路が繋がっているはずなので)
+					if(next_sta_list.len() != 0){ break }
+				}
+				foreach(next_sta in _step_generator(next_sta_list))
+				{
+					local temp_dist = abs(next_sta.halt.get_tile_list().top().x-to_tile.x)+abs(next_sta.halt.get_tile_list().top().y-to_tile.y)
+					if(temp_dist < dist)
+					{
+						dist = temp_dist
+						prev_halt = next_sta.halt
+						blnFlg = true
+					}
+				}
+			}
+		}while(blnFlg)
+		
 		// 分岐駅設置候補地探索
 		local candidate_tile = search_new_junction_sta_tile(prev_halt, to_tile, pl)
 		if(candidate_tile)
@@ -1362,6 +1400,7 @@ gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 				{
 					// 目的地との距離が近くなる間、線路をトレース
 					local trace_list = station.trace_way(start, wt_rail, dd, @(a) dist = abs(a.x-to.x)+abs(a.y-to.y) < dist ? abs(a.x-to.x)+abs(a.y-to.y) : 0)
+
 					// トレースリストに駅あるなら、目的地に近いものを取得
 					local halt_tile_list = filter(trace_list, @(a) a.get_halt() != null)
 					if(halt_tile_list.len() != 0 && abs(halt_tile_list.top().x-to.x) + abs(halt_tile_list.top().y-to.y) < dist)

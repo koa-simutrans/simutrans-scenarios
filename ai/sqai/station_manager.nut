@@ -1857,44 +1857,72 @@ return err }
 			}
 		}else{
 			// I’[‰wor‹’“_‰w‚ªŠY“–
-			local halt_info = { halt = halt, dir = tbl_form_info_list[0].dir }
-			local dir_list = map(tbl_form_info_list, @(a) a.dir)
-			dir_list = filter(dir_list, @(a) dir.is_single(a))
-			if(dir_list.len() == 0)
+			local dir_list = []
+			local signal_form_list = []
+			foreach(tbl_form_info in tbl_form_info_list)
 			{
-				dir_list = finder.divide_dir(tbl_form_info_list[0].dir)
-			}
-			local next_sta_list = []
-			foreach(dd in dir_list)
-			{
-				next_sta_list = combine(next_sta_list, search_next_sta(halt_info, tbl_form_info_list[0].stop, dd, be_electrified, []))
-			}
-			foreach(tbl_form_info in _step_generator(tbl_form_info_list))
-			{
+				// ‰wî•ñ‚É—×Ú‰wî•ñ‚Ìƒƒ“ƒo•Ï”’Ç‰Á
 				tbl_form_info.next_sta_list <- []
-			}
-			local asf = astar_route_finder(wt_rail)
-			foreach(next_sta in next_sta_list)
-			{
-				local tbl_list = []
-				foreach(tbl_form_info in tbl_form_info_list)
+
+				local temp_dir_list = finder.divide_dir(tbl_form_info.dir)
+				// I’[‰wor‹’“_‰w‚Ìê‡‚Íˆê‚Â‘O‚Ì‰w‚©‚çÅ’Z‹——£‚Ìƒz[ƒ€‚ğ‘I‘ğ‚·‚é
+				if(temp_dir_list.len() == 1)
 				{
-					local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 2)
-					boundary_list = sort(boundary_list, @(a,b) abs(a.x-next_sta.tile_list[0].x)+abs(a.y-next_sta.tile_list[0].y) <=> abs(b.x-next_sta.tile_list[0].x)+abs(b.y-next_sta.tile_list[0].y))
-					local res = asf.search_route([boundary_list[0]], next_sta.tile_list)
-					if("routes" in res)
+					local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 4)
+					boundary_list = filter(boundary_list, @(a) dir.is_single(a.get_way_dirs(wt_rail)))
+					if(boundary_list.len() == 0)
 					{
-						tbl_list.append({stop = tbl_form_info.stop, length = res.routes.len()})
+						temp_dir_list[0] = dir.backward(temp_dir_list[0])
+						signal_form_list.append(tbl_form_info.stop)
 					}
 				}
-				tbl_list = sort(tbl_list, @(a,b) a.length <=> b.length)
-				if(tbl_list.len() > 0)
+				dir_list = combine(dir_list, temp_dir_list)
+			}
+			dir_list = unique(dir_list)
+
+			local asf = astar_route_finder(wt_rail)
+			foreach(dd in dir_list)
+			{
+				local next_sta_list = []
+				// ƒz[ƒ€‚É‚æ‚Á‚ÄI’[ü˜H‚Ìê‡‚ª‚ ‚é‚Ì‚Å‘Sƒz[ƒ€‚Å—×Ú‰w‚ğŒŸõ
+				foreach(tbl_form_info in tbl_form_info_list)
 				{
+					if(is_member(tbl_form_info.stop, signal_form_list))
+					{
+						if(dd == tbl_form_info.dir){ continue }
+					}
+					local halt_info = { halt = halt, dir = dd }
+					next_sta_list = search_next_sta(halt_info, tbl_form_info.stop, dd, be_electrified, [])
+					// —×Ú‰wî•ñ‚ªæ“¾‚Å‚«‚é‚ÆŠî–{“I‚É“¯‚¶Œ‹‰Ê‚É‚È‚é(‘S‚Ä‚Ìƒz[ƒ€‚Íü˜H‚ªŒq‚ª‚Á‚Ä‚¢‚é‚Í‚¸‚È‚Ì‚Å)
+					if(next_sta_list.len() != 0){ break }
+				}
+
+				foreach(next_sta in next_sta_list)
+				{
+					local tbl_list = []
 					foreach(tbl_form_info in tbl_form_info_list)
 					{
-						if(compare_coord(tbl_form_info.stop, tbl_list[0].stop))
+						if(is_member(tbl_form_info.stop, signal_form_list))
 						{
-							tbl_form_info.next_sta_list.append(next_sta)
+							if(dd == tbl_form_info.dir){ continue }
+						}
+						local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 2)
+						boundary_list = sort(boundary_list, @(a,b) abs(a.x-next_sta.tile_list[0].x)+abs(a.y-next_sta.tile_list[0].y) <=> abs(b.x-next_sta.tile_list[0].x)+abs(b.y-next_sta.tile_list[0].y))
+						local res = asf.search_route([boundary_list[0]], next_sta.tile_list)
+						if("routes" in res)
+						{
+							tbl_list.append({stop = tbl_form_info.stop, length = res.routes.len()})
+						}
+					}
+					tbl_list = sort(tbl_list, @(a,b) a.length <=> b.length)
+					if(tbl_list.len() > 0)
+					{
+						foreach(tbl_form_info in tbl_form_info_list)
+						{
+							if(compare_coord(tbl_form_info.stop, tbl_list[0].stop))
+							{
+								tbl_form_info.next_sta_list.append(next_sta)
+							}
 						}
 					}
 				}
@@ -1986,27 +2014,34 @@ return err }
 				sta_info = get_station_info(halt, 2, be_electrified)
 				tbl_form_info_list = sta_info.tbl_form_info_list
 				tbl_form_info_list = filter(tbl_form_info_list, @(a) !(compare_coord(a.stop, original_stop)))
-				local search_tile_list = get_boundary_station_pos(tbl_form_info_list[0].stop, 3)
-				search_tile_list = sort(search_tile_list, @(a,b) abs(a.x-branch_side.x)+abs(a.y-branch_side.y) <=> abs(b.x-branch_side.x)+abs(b.y-branch_side.y))
-				local vertical_dir = finder.rotate_right_angle(search_dir, true)
-				local temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
-				if(temp_tile == null || !(temp_tile.has_way(wt_rail)))
+				if(tbl_form_info_list.len() == 1)
 				{
-					vertical_dir = finder.rotate_right_angle(search_dir, false)
-					temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
-				}
-				while(dir.is_threeway(search_tile_list[0].get_way_dirs(wt_rail)) || dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))
-				{
-					search_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], search_dir))
-					temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
-				}
-				if(search_tile_list[0].has_way(wt_rail) && temp_tile.has_way(wt_rail))
-				{
-					if(temp_tile.find_object(mo_depot_rail) != null)
+					local search_tile_list = get_boundary_station_pos(tbl_form_info_list[0].stop, 2)
+					search_tile_list = sort(search_tile_list, @(a,b) abs(a.x-branch_side.x)+abs(a.y-branch_side.y) <=> abs(b.x-branch_side.x)+abs(b.y-branch_side.y))
+					local vertical_dir = finder.rotate_right_angle(search_dir, true)
+					local temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
+					if(temp_tile == null || !(temp_tile.has_way(wt_rail)))
 					{
-						temp_tile.remove_object(pl, mo_depot_rail)
+						vertical_dir = finder.rotate_right_angle(search_dir, false)
+						temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
 					}
-					expand_straight_rail(pl, search_tile_list[0], temp_tile)
+					while(dir.is_threeway(search_tile_list[0].get_way_dirs(wt_rail)) || dir.is_threeway(temp_tile.get_way_dirs(wt_rail)))
+					{
+						if(is_member(vertical_dir, finder.divide_dir(search_tile_list[0].get_way_dirs(wt_rail))) && is_member(dir.backward(vertical_dir), finder.divide_dir(temp_tile.get_way_dirs(wt_rail))))
+						{
+							break
+						}
+						search_tile_list[0] = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], search_dir))
+						temp_tile = finder.coord2D_to_tile(finder.move_coord(search_tile_list[0], vertical_dir))
+					}
+					if(search_tile_list[0].has_way(wt_rail) && temp_tile.has_way(wt_rail))
+					{
+						if(temp_tile.find_object(mo_depot_rail) != null)
+						{
+							temp_tile.remove_object(pl, mo_depot_rail)
+						}
+						expand_straight_rail(pl, search_tile_list[0], temp_tile)
+					}
 				}
 			}
 		}

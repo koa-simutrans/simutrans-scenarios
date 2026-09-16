@@ -1935,6 +1935,8 @@ if(debug_mode){
 				station.set_passing_each_other(pl, halt)
 			}
 		}
+		// 行き違い設備を設けると停車位置情報を更新
+		schedule_entry_list = line.get_schedule().entries
 		// ホーム長さ調整
 		foreach(schedule in schedule_entry_list)
 		{
