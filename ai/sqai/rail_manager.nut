@@ -1215,7 +1215,7 @@ gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
 				local sig_tile = filter(temp_tile_list, @(a) a.find_object(mo_signal) != null)
 				if(sig_tile.len() == 0)
 				{
-					temp_tile_list = filter(temp_tile_list, @(a) a.get_halt() != null)
+					temp_tile_list = filter(temp_tile_list, @(a) a.get_halt() != null && a.has_way(wt_rail))
 					temp_tile_list = sort(temp_tile_list, @(a,b) abs(a.x - start.x) + abs(a.y - start.y) <=> abs(b.x - start.x) + abs(b.y - start.y))
 					if(temp_tile_list.len() != 0)
 					{

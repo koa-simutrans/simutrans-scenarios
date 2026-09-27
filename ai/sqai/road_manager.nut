@@ -487,11 +487,11 @@ class depot_pathfinder extends astar_builder
 		if (t.is_empty()  &&  t.get_slope()==0) {
 			return 0
 		}
-		if (t.has_way(wt_road) && dir.is_single(t.get_way_dirs(wt_road)) && t.get_halt() == null && is_member(t.get_way(wt_road).get_owner().nr, [our_player_nr, 1, player_all+1])) {
-			return 0
-		}
 		local depot = t.find_object(mo_depot_road)
 		if (depot  &&  depot.get_owner().nr == our_player_nr) {
+			return 0
+		}
+		if (t.has_way(wt_road) && dir.is_single(t.get_way_dirs(wt_road)) && !(t.is_bridge()) && !(t.is_tunnel()) && !(t.is_crossing()) && t.get_halt() == null && is_member(t.get_way(wt_road).get_owner().nr, [our_player_nr, 1, player_all+1]) && !(depot)) {
 			return 0
 		}
 		return 10

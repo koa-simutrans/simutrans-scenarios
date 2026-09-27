@@ -1583,7 +1583,7 @@ if(debug_mode){
 		// 往路路線を選出(ベースの駅を通っている路線を選出、ない場合は駅数が最小の路線を選出)
 		local temp_root = []
 		local no_candidate_root = []
-		foreach(candidate_root in _step_generator(outward_root_list))
+		foreach(candidate_root in outward_root_list)
 		{
 			local halt_list = map(candidate_root, @(a) a.halt.get_name())
 			if(is_member(base_terminal.get_name(), halt_list))
@@ -1602,10 +1602,7 @@ if(debug_mode){
 		// 往路路線を停車駅数で昇順ソート
 		temp_root = sort(temp_root, @(a,b) a.len() <=> b.len())
 		local outward_root = temp_root[0]
-		if(no_candidate_root.len() == outward_root_list.len())
-		{
-			no_candidate_root = temp_root.slice(1)
-		}
+		no_candidate_root = combine(no_candidate_root, temp_root.slice(1))
 		if(no_candidate_root.len() != 0)
 		{
 
@@ -1669,28 +1666,67 @@ if(debug_mode){
 		// 復路分
 		for(local ii = outward_root.len() - 1; ii > 0; ii--)
 		{
+			halt_name_list.append(outward_root[ii].halt.get_name())
 			local info = outward_root[ii].info.tbl_form_info_list
 			// 公共駅の場合、他社線ホームは除外
 			if(outward_root[ii].halt.get_owner() == 1)
 			{
 				info = filter(info, @(a) permit_use_form(a.stop, pl.nr))
 			}
-			// 往路と逆向きに発着できる番線を検索
-			info = filter(info, @(a) is_member(a.dir, [dir.backward(outward_root[ii].dir), dir.backward(outward_root[ii].dir)+outward_root[ii].dir]))
-			// ホームを使用している路線数が最小のホームを選択
-			local tbl_form_info = station.get_line_using_track(outward_root[ii].halt, 2)
-			tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, map(info, @(b) b.stop)))
-			if(tbl_form_info.len() > 1 && ii != outward_root.len() - 1)
+			// 棒線駅の場合
+			if(info.len() == 1)
 			{
-				tbl_form_info = filter(tbl_form_info, @(a) !(is_member(a.stop, station.get_track_list(outward_root[ii].stop))))
+				stop_list.append(info[0].stop)
+				continue
 			}
-			tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
-			stop_list.append(tbl_form_info[0].stop)
-			halt_name_list.append(outward_root[ii].halt.get_name())
+			// 往路と逆向きに発着できる番線を検索
+			info = filter(info, @(a) is_member(a.dir, [dir.backward(outward_root[ii].dir), dir.double(dir.backward(outward_root[ii].dir))]))
+			// 複数番線がある場合、次の駅との最短経路のホームを選択
+			// スイッチバック駅の場合は前の駅との最短経路ホームを選択
+			local bln_next = info.len() == 0 && ii < outward_root.len() - 1 ? false : true
+			if(info.len() != 1)
+			{
+				local tbl_temp = { tbl_form_info_list = info }
+				local tbl_form_info_list = station.add_next_sta_list(tbl_temp, false, bln_next)
+				local tbl_new_form_info_list = []
+				local next_idx = bln_next ? ii-1 : ii+1
+				foreach(tbl_form_info in tbl_form_info_list)
+				{
+					local next_halt_list = map(tbl_form_info.next_sta_list, @(a) a.halt)
+					if(is_member(true, map(next_halt_list, @(a) finder.is_same_halt(a, outward_root[next_idx].halt))))
+					{
+						tbl_new_form_info_list.append(tbl_form_info)
+					}
+				}
+				info = tbl_new_form_info_list
+			}
+			stop_list.append(info[0].stop)
 		}
 		// 往路分
 		for(local ii = 0; ii < outward_root.len() - 1; ii++)
 		{
+			// select_rail_outward_root関数の戻り値のメンバ変数stopは暫定位置なので修正
+			local info = outward_root[ii].info.tbl_form_info_list
+			info = filter(info, @(a) is_member(a.dir, [outward_root[ii].dir, dir.double(outward_root[ii].dir)]))
+			if(info.len() > 1)
+			{
+				// 複数番線がある場合、次の駅との最短経路のホームを選択
+				// スイッチバック駅の場合は前の駅との最短経路ホームを選択
+				local bln_next = info.len() == 0 && ii < outward_root.len() - 1 ? false : true
+				local tbl_temp = { tbl_form_info_list = info }
+				local tbl_form_info_list = station.add_next_sta_list(tbl_temp, false, bln_next)
+				local tbl_new_form_info_list = []
+				local next_idx = bln_next ? ii+1 : ii-1
+				foreach(tbl_form_info in tbl_form_info_list)
+				{
+					local next_halt_list = map(tbl_form_info.next_sta_list, @(a) a.halt)
+					if(is_member(true, map(next_halt_list, @(a) finder.is_same_halt(a, outward_root[next_idx].halt))))
+					{
+						tbl_new_form_info_list.append(tbl_form_info)
+					}
+				}
+				outward_root[ii].stop = tbl_new_form_info_list[0].stop
+			}
 			stop_list.append(outward_root[ii].stop)
 			if(ii == 0){ halt_name_list.append(outward_root[ii].halt.get_name()) }
 		}
@@ -1806,20 +1842,6 @@ if(debug_mode){
 			local next_sta_info = station.get_station_info(next_sta_list[0].halt, 2, is_electrified)
 			// 次駅停車位置取得
 			local stop_candidate = map(next_sta_list[0].tile_list, @(a) station.trace_way(a, wt_rail, next_sta_list[0].dir, @(b) b.get_halt() != null).top())
-			if(stop_candidate.len() > 1)
-			{
-				// ホームを使用している路線数が最小のホームを選択
-				local tbl_form_info = station.get_line_using_track(next_sta_list[0].halt, 2)
-				local no_line_stop_list = filter(stop_candidate, @(a) !(is_member(a, map(tbl_form_info, @(b) b.stop))))
-				if(no_line_stop_list.len() == 0)
-				{
-					tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, stop_candidate))
-					tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
-					stop_candidate[0] = tbl_form_info[0].stop
-				}else{
-					stop_candidate = no_line_stop_list
-				}
-			}
 			local tbl_temp =
 			{
 				stop = stop_candidate[0]
@@ -1840,20 +1862,6 @@ if(debug_mode){
 				local next_sta_info = station.get_station_info(next_sta.halt, 2, is_electrified)
 				// 次駅停車位置取得
 				local stop_candidate = map(next_sta.tile_list, @(a) station.trace_way(a, wt_rail, next_sta.dir, @(b) b.get_halt() != null).top())
-				if(stop_candidate.len() > 1)
-				{
-					// ホームを使用している路線数が最小のホームを選択
-					local tbl_form_info = station.get_line_using_track(next_sta.halt, 2)
-					local no_line_stop_list = filter(stop_candidate, @(a) !(is_member(a, map(tbl_form_info, @(b) b.stop))))
-					if(no_line_stop_list.len() == 0)
-					{
-						tbl_form_info = filter(tbl_form_info, @(a) is_member(a.stop, stop_candidate))
-						tbl_form_info = sort(tbl_form_info, @(a,b) a.line_list.len() <=> b.line_list.len())
-						stop_candidate[0] = tbl_form_info[0].stop
-					}else{
-						stop_candidate = no_line_stop_list
-					}
-				}
 				local tbl_temp =
 				{
 					stop = stop_candidate[0]
@@ -1889,6 +1897,16 @@ if(debug_mode){
 		local tile_owner_list = map(boundary_list, @(a) a.get_way(wt_rail).get_owner().nr)
 		return !(is_member(false, map(tile_owner_list, @(a) is_member(a, [1, pl_nr]))))
 	}
+
+	/***************************************
+	 * 複数のホームから路線作成にあたり最適なホームを選択
+	 * 引数：駅情報(table)、電化区間のみ情報取得するか(boolean)、
+	 * 戻り値：最適なホームの情報(table)
+	 *                length：ホーム長さ
+	 *                stop  ：列車停車位置の座標(スケジュール設定時に使用)
+	 *                dir   ：ホーム上の列車の進行方向
+	 ***************************************/
+	
 
 	/***************************************
 	 * 電化必要な鉄道路線か

@@ -1686,6 +1686,7 @@ return err }
 					}catch(e)
 					{
 						gui.add_message_at(pl,"set_passing_each_other: failed set signal ["+coord_to_string(sig_tile)+"],dir:"+dir.backward(d),sig_tile)
+						break
 					}
 					}
 				}
@@ -1857,76 +1858,7 @@ return err }
 			}
 		}else{
 			// 終端駅or拠点駅が該当
-			local dir_list = []
-			local signal_form_list = []
-			foreach(tbl_form_info in tbl_form_info_list)
-			{
-				// 駅情報に隣接駅情報のメンバ変数追加
-				tbl_form_info.next_sta_list <- []
-
-				local temp_dir_list = finder.divide_dir(tbl_form_info.dir)
-				// 終端駅or拠点駅の場合は一つ前の駅から最短距離のホームを選択する
-				if(temp_dir_list.len() == 1)
-				{
-					local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 4)
-					boundary_list = filter(boundary_list, @(a) dir.is_single(a.get_way_dirs(wt_rail)))
-					if(boundary_list.len() == 0)
-					{
-						temp_dir_list[0] = dir.backward(temp_dir_list[0])
-						signal_form_list.append(tbl_form_info.stop)
-					}
-				}
-				dir_list = combine(dir_list, temp_dir_list)
-			}
-			dir_list = unique(dir_list)
-
-			local asf = astar_route_finder(wt_rail)
-			foreach(dd in dir_list)
-			{
-				local next_sta_list = []
-				// ホームによって終端線路の場合があるので全ホームで隣接駅を検索
-				foreach(tbl_form_info in tbl_form_info_list)
-				{
-					if(is_member(tbl_form_info.stop, signal_form_list))
-					{
-						if(dd == tbl_form_info.dir){ continue }
-					}
-					local halt_info = { halt = halt, dir = dd }
-					next_sta_list = search_next_sta(halt_info, tbl_form_info.stop, dd, be_electrified, [])
-					// 隣接駅情報が取得できると基本的に同じ結果になる(全てのホームは線路が繋がっているはずなので)
-					if(next_sta_list.len() != 0){ break }
-				}
-
-				foreach(next_sta in next_sta_list)
-				{
-					local tbl_list = []
-					foreach(tbl_form_info in tbl_form_info_list)
-					{
-						if(is_member(tbl_form_info.stop, signal_form_list))
-						{
-							if(dd == tbl_form_info.dir){ continue }
-						}
-						local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 2)
-						boundary_list = sort(boundary_list, @(a,b) abs(a.x-next_sta.tile_list[0].x)+abs(a.y-next_sta.tile_list[0].y) <=> abs(b.x-next_sta.tile_list[0].x)+abs(b.y-next_sta.tile_list[0].y))
-						local res = asf.search_route([boundary_list[0]], next_sta.tile_list)
-						if("routes" in res)
-						{
-							tbl_list.append({stop = tbl_form_info.stop, length = res.routes.len()})
-						}
-					}
-					tbl_list = sort(tbl_list, @(a,b) a.length <=> b.length)
-					if(tbl_list.len() > 0)
-					{
-						foreach(tbl_form_info in tbl_form_info_list)
-						{
-							if(compare_coord(tbl_form_info.stop, tbl_list[0].stop))
-							{
-								tbl_form_info.next_sta_list.append(next_sta)
-							}
-						}
-					}
-				}
-			}
+			tbl_form_info_list = add_next_sta_list(tbl_station_info, be_electrified, false)
 		}
 
 		// スケジュール更新
@@ -1961,6 +1893,111 @@ return err }
 			local schedule = schedule_x(wt_rail, schedule_entries)
 			line.change_schedule(pl, schedule)
 		}
+	}
+
+	/***************************************
+	 * 駅情報構造体のtbl_form_info_listに隣接駅情報を追加する
+	 * 引数：駅情報構造体(table)、電化区間のみ情報取得するか(boolean)、ホームの向き順/逆方向に検索(boolean)
+	 * 戻り値：各プラットホームの情報リスト(table)
+	 *           length：ホーム長さ
+	 *           stop  ：列車停車位置の座標(スケジュール設定時に使用)
+	 *           dir   ：ホーム上の列車の進行方向
+	 * 　　　　　next_sta_list:隣接駅情報リスト
+	 * 　　　　        halt     :駅情報(halt_x)
+	 * 　　　　        dir      :駅進入時の方角(dir)
+	 * 　　　　        tile_list:同一方角から駅進入する時のプラットホーム開始位置のタイルリスト
+	 * 備考：駅情報構造体はget_station_info関数の戻り値
+	 ***************************************/
+	function add_next_sta_list(tbl_sta_info, be_electrified, bln_dir)
+	{
+		local tbl_form_info_list = tbl_sta_info.tbl_form_info_list
+		local halt = tbl_form_info_list[0].stop.get_halt()
+		local dir_list = []
+		local signal_form_list = []
+		foreach(tbl_form_info in tbl_form_info_list)
+		{
+			// 駅情報に隣接駅情報のメンバ変数追加
+			tbl_form_info.next_sta_list <- []
+
+			local temp_dir_list = finder.divide_dir(tbl_form_info.dir)
+			// 出発信号で向きが決まっているホームを抽出
+			if(temp_dir_list.len() == 1)
+			{
+				local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 4)
+				boundary_list = filter(boundary_list, @(a) dir.is_single(a.get_way_dirs(wt_rail)))
+				if(boundary_list.len() == 0)
+				{
+					if(!(bln_dir)){ temp_dir_list[0] = dir.backward(temp_dir_list[0]) }
+					signal_form_list.append(tbl_form_info.stop)
+				}
+			}
+			dir_list = combine(dir_list, temp_dir_list)
+		}
+		dir_list = unique(dir_list)
+
+		local asf = astar_route_finder(wt_rail)
+		foreach(dd in dir_list)
+		{
+			local next_sta_list = []
+			// ホームによって終端線路の場合があるので全ホームで隣接駅を検索
+			foreach(tbl_form_info in tbl_form_info_list)
+			{
+				if(is_member(tbl_form_info.stop, signal_form_list))
+				{
+					if(bln_dir && dd == dir.backward(tbl_form_info.dir)){ continue }
+					if(!(bln_dir) && dd == tbl_form_info.dir){ continue }
+				}
+				local halt_info = { halt = halt, dir = dd }
+				next_sta_list = search_next_sta(halt_info, tbl_form_info.stop, dd, be_electrified, [])
+				// 隣接駅情報が取得できると基本的に同じ結果になる(全てのホームは線路が繋がっているはずなので)
+				if(next_sta_list.len() != 0){ break }
+			}
+
+			foreach(next_sta in next_sta_list)
+			{
+				local tbl_list = []
+				foreach(tbl_form_info in tbl_form_info_list)
+				{
+					if(is_member(tbl_form_info.stop, signal_form_list))
+					{
+						if(bln_dir && dd == dir.backward(tbl_form_info.dir)){ continue }
+						if(!(bln_dir) && dd == tbl_form_info.dir){ continue }
+					}
+					local boundary_list = get_boundary_station_pos(tbl_form_info.stop, 2)
+					boundary_list = sort(boundary_list, @(a,b) abs(a.x-next_sta.tile_list[0].x)+abs(a.y-next_sta.tile_list[0].y) <=> abs(b.x-next_sta.tile_list[0].x)+abs(b.y-next_sta.tile_list[0].y))
+					local res = asf.search_route([boundary_list[0]], next_sta.tile_list)
+					if("routes" in res)
+					{
+						tbl_list.append({stop = tbl_form_info.stop, length = res.routes.len()})
+					}
+				}
+				tbl_list = sort(tbl_list, @(a,b) a.length <=> b.length)
+
+				// ホーム両方向から進入可能な場合、複数ホームがあっても各方向の隣接駅からの最短距離が
+				// 一つのホームに集中することがある
+				// 隣接駅からの距離の昇順にホームを並べて、隣接駅情報を持たないホームを選択するようにする
+				local idx = 0
+				while(idx < tbl_list.len())
+				{
+					foreach(tbl_form_info in _step_generator(tbl_form_info_list))
+					{
+						if(compare_coord(tbl_form_info.stop, tbl_list[idx].stop))
+						{
+							if(tbl_form_info.next_sta_list.len() != 0 && idx < tbl_list.len() - 1)
+							{
+								idx++
+							}else{
+								tbl_form_info.next_sta_list.append(next_sta)
+								idx = tbl_list.len()
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+
+		return tbl_form_info_list
 	}
 
 	/***************************************
@@ -2597,6 +2634,7 @@ return err }
 			}
 			if(dir.is_single(d))
 			{
+				d = dir.backward(d)
 				local bridge_list = bridge_desc_x.get_available_bridges(wt_rail)
 				if(bridge_list.len() == 0){ return }
 				local len = 1
