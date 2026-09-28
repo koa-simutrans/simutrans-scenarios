@@ -210,8 +210,13 @@ class rail_manager_t extends manager_t
 				// TODO:‰wÉ‚ª‚È‚¢ê‡AƒoƒX’â—L–³‚ğ’²‚×‚Ä–³‚¢‚È‚çŒšİ
 					if(ii == 0)
 					{
-						prev_halt = already_station
-						continue
+						local rail_line_list = already_station.get_line_list()
+						rail_line_list = filter(rail_line_list, @(a) a.get_waytype() == wt_rail)
+						if(rail_line_list.len() != 0)
+						{
+							prev_halt = already_station
+							continue
+						}
 					}
 					// –_ü‰w‚©‚Â––’[‰w‚Ìê‡A‚»‚±‚©‚çŒšİ
 					if(tbl_sta_info.tbl_form_info_list.len() == 1 && dir.is_single(tbl_sta_info.tbl_form_info_list[0].dir))
@@ -1133,7 +1138,7 @@ gui.add_message_at(pl,"ind:"+kk+",["+coord_to_string(end)+"],["+coord_to_string(
 			// ‰wŠÔü˜H•~İ¸”s
 			if(!(compare_coord(rtn.tile, restart)))
 			{
-gui.add_message_at(pl,"bbbb:["+coord_to_string(rtn.tile)+"]",rtn.tile)
+gui.add_message_at(pl,"insert_ind_attract:missing build_rail from ["+coord_to_string(rtn.tile)+"]",rtn.tile)
 				local asf = astar_route_finder(wt_rail)
 				local res = asf.search_route([build_start_tile], [rtn.tile])
 				if(!("err" in res))

@@ -455,12 +455,8 @@ local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
 
-local aaa = finder.coord2D_to_tile(coord(363,157))
-local bbb = finder.coord2D_to_tile(coord(335,192))
-local ccc = finder.coord2D_to_tile(coord(346,45))
-    gui.add_message_at(our_player,dd.get_halt().get_name()+":"+str,z.stop)
-  }
-}
+local aaa = finder.coord2D_to_tile(coord(356,259))
+local halt = aaa.get_halt()
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)

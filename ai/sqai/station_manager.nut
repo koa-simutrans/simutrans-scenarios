@@ -409,12 +409,27 @@ return err }
 		local sta_office_tile_list = filter(sta_tile_list, @(a) !(a.has_ways()))
 		sta_office_tile_list = filter(sta_office_tile_list, @(a) a.find_object(mo_building).get_desc().enables_pax())
 		local bus_stop_tile = null
-		if(sta_office_tile_list.len() != 0)
+		if(sta_office_tile_list.len() == 0)
 		{
+			local neighbor_tile_list = finder.bldg_neighbor_tile_list(sta_tile_list)
+			// 隣接タイルに既にバス停がある場合、駅を統合
+			local already_busstop_tile_list = filter(neighbor_tile_list, @(a) a.has_way(wt_road) && a.get_halt() != null)
+			already_busstop_tile_list = filter(already_busstop_tile_list, @(a) a.get_halt().get_owner().nr == pl.nr)
+			if(already_busstop_tile_list.len() != 0)
+			{
+				local cmd = command_x(tool_merge_stop)
+				foreach(already_busstop_tile in _step_generator(already_busstop_tile_list))
+				{
+					cmd.work(pl, sta_tile_list[0], already_busstop_tile, "")
+				}
+				return
+			}
+		}else{
 			// 駅舎の隣接タイル取得
 			local neighbor_tile_list = finder.bldg_neighbor_tile_list(sta_office_tile_list)
 			// 駅舎の隣接タイルに既にバス停がある場合、駅を統合
 			local already_busstop_tile_list = filter(neighbor_tile_list, @(a) a.has_way(wt_road) && a.get_halt() != null)
+			already_busstop_tile_list = filter(already_busstop_tile_list, @(a) a.get_halt().get_owner().nr == pl.nr)
 			if(already_busstop_tile_list.len() != 0)
 			{
 				local cmd = command_x(tool_merge_stop)

@@ -1717,6 +1717,7 @@ if(debug_mode){
 				local tbl_form_info_list = station.add_next_sta_list(tbl_temp, false, bln_next)
 				local tbl_new_form_info_list = []
 				local next_idx = bln_next ? ii+1 : ii-1
+				if(next_idx == outward_root.len()){ next_idx = 0 }
 				foreach(tbl_form_info in tbl_form_info_list)
 				{
 					local next_halt_list = map(tbl_form_info.next_sta_list, @(a) a.halt)

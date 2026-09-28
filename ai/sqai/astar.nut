@@ -127,7 +127,7 @@ class astar
 		// 探索回数設定
 		local counter_max = -1
 		if (counter_max_flg && heap.len() == 1) {
-			counter_max = estimate_distance(nodes[0]) * 10
+			counter_max = estimate_distance(nodes[0]) * 30
 		}
 		local current_node = null
 		local cnt=0
@@ -516,8 +516,8 @@ class astar_builder extends astar
 						// from, toが平坦で段差ある場合は、橋梁対応
 						if(abs(from.z - to.z) == 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ flat_field_flg = -1 }
 						if(way != null && way.get_waytype() == wt_rail && abs(from.z - to.z) > 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ continue }
-						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
-						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
+						// スロープの向きと建設方向の向きが合わないパターン
+						if(!(check_slope_dir(from.get_slope(), d)) || !(check_slope_dir(to.get_slope(), d))){ flat_field_flg = 2 }
 						// 線路敷設時、段差2のスロープの時、flat_field_flg=2にする
 						if(way != null && way.get_waytype() == wt_rail && check_double_slope(to))
 						{
