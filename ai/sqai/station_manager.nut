@@ -2022,6 +2022,10 @@ return err }
 	 * 　　　　enter：駅に入場するタイル(tile_x)
 	 * 　　　　exit：分岐駅から線路敷設する時の始点(tile_x)
 	 *         halt：駅(公共駅を更新したとき用)
+	 * 用語説明
+	 * -------------------本線-----p>------------------
+	 *       `--<--------副本線------/
+	 *        `----------分岐線--------`-><--
 	 ***************************************/
 	function update_junction_station(pl, halt, branch_side)
 	{
@@ -2303,49 +2307,34 @@ return err }
 			extend_pos = finder.coord2D_to_tile(finder.move_coord(temp_tile, dir.backward(tbl_expand_form_info.expand_dir)))
 			if(!(connect_main_branch_flg) && !(dir.is_threeway(extend_pos.get_way_dirs(wt_rail))))
 			{
+				local continue_flg = false
 				// 駅舎側の線路との段差をなくす
 				while(temp_tile.z != extend_pos.z || temp_tile.get_slope() != slope.flat || extend_pos.get_slope() != slope.flat)
 				{
-					local temp = finder.coord2D_to_tile(finder.move_coord(temp_tile, d))
-					if(temp_tile.z != extend_pos.z)
+					local diff = extend_pos.z - temp_tile.z
+					local do_slope = diff > 0 ? slope.all_up_slope : slope.all_down_slope
+					while(diff != 0)
 					{
-						local diff = extend_pos.z - temp_tile.z
-						local do_slope = diff > 0 ? slope.all_up_slope : slope.all_down_slope
 						command_x.set_slope(pl, temp_tile, do_slope)
 						temp_tile = finder.coord2D_to_tile(coord(temp_tile.x, temp_tile.y))
-						// 分岐線をスロープにしたので外方に移動
-						if(extend_pos.z - temp_tile.z <= 0)
-						{
-							while(temp.z != temp_tile.z)
-							{
-								command_x.set_slope(pl, temp, slope.all_up_slope)
-								temp = finder.coord2D_to_tile(coord(temp.x, temp.y))
-							}
-							if(temp_tile.get_slope().to_dir() == coord(temp.x-temp_tile.x,temp.y-temp_tile.y).to_dir())
-							{
-								command_x.set_slope(pl, temp, slope.all_up_slope)
-								temp = finder.coord2D_to_tile(coord(temp.x, temp.y))
-							}
-						}else{
-							do_slope = temp.z - temp_tile.z > 1 ? slope.all_down_slope : slope.all_up_slope
-							while(temp.z - temp_tile.z != 1)
-							{
-								command_x.set_slope(pl, temp, do_slope)
-								temp = finder.coord2D_to_tile(coord(temp.x, temp.y))
-							}
-						}
-						// 外方を平坦にする
-						if(temp.get_slope() != slope.flat)
-						{
-							command_x.set_slope(pl, temp, slope.flat)
-						}
+						diff = extend_pos.z - temp_tile.z
 					}
-					
-					// 外方に延長
-					expand_straight_rail(pl, temp_tile, temp)
-					temp_tile = temp
-					extend_pos = finder.coord2D_to_tile(finder.move_coord(temp_tile, d))
+					// 副本線のスロープと分岐線のスロープを合わせる
+					local extend_pos_slope = extend_pos.get_slope()
+					command_x.set_slope(pl, temp_tile, extend_pos_slope)
+					// 1マス外方に移動
+					local temp = finder.coord2D_to_tile(finder.move_coord(temp_tile, d))
+					temp_tile = expand_straight_rail(pl, temp_tile, temp)
+					extend_pos = finder.coord2D_to_tile(finder.move_coord(extend_pos, d))
+					// 分岐線末端の1マス外方に線路あり
+					if(temp_tile.has_way(wt_rail))
+					{
+						extend_pos = temp_tile
+						continue_flg = true
+						break
+					}
 				}
+				if(continue_flg){ continue }
 
 				// 駅舎側の線路に信号あれば、外方に移設
 				if(extend_pos.find_object(mo_signal) != null)

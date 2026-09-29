@@ -518,6 +518,11 @@ class astar_builder extends astar
 						if(way != null && way.get_waytype() == wt_rail && abs(from.z - to.z) > 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ continue }
 						// スロープの向きと建設方向の向きが合わないパターン
 						if(!(check_slope_dir(from.get_slope(), d)) || !(check_slope_dir(to.get_slope(), d))){ flat_field_flg = 2 }
+						// スロープの向きはあってても段差があるパターン
+						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
+						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
+						// fromが整地対象でfromまでと向きが異なるパターン
+						if(cnode.flag == 2 && cnode.dir != d){ flat_field_flg = 2 }
 						// 線路敷設時、段差2のスロープの時、flat_field_flg=2にする
 						if(way != null && way.get_waytype() == wt_rail && check_double_slope(to))
 						{
@@ -834,6 +839,12 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 					// 整地に伴い高さを更新
 					route[i-1].z = finder.coord2D_to_tile(coord(route[i-1].x, route[i-1].y)).z
 					route[i].z = finder.coord2D_to_tile(coord(route[i].x, route[i].y)).z
+					// 1マスだけで高さが足りない場合
+					if(i > 1 && route[i-2].z - route[i-1].z == 1)
+					{
+						command_x.set_slope(our_player, route[i-1], slope.all_up_slope)
+						route[i-1].z = finder.coord2D_to_tile(coord(route[i-1].x, route[i-1].y)).z
+					}
 					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
 					if (err) {
 						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])

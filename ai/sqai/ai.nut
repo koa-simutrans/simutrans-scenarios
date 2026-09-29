@@ -455,8 +455,11 @@ local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
 
-local aaa = finder.coord2D_to_tile(coord(356,259))
-local halt = aaa.get_halt()
+if(our_player_nr == 2){
+local aaa = finder.coord2D_to_tile(coord(333,82))
+local bbb = finder.coord2D_to_tile(coord(488,277))
+station.update_junction_station(our_player, aaa.get_halt(), bbb)
+}
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)

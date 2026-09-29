@@ -1419,7 +1419,7 @@ gui.add_message_at(pl,"insert_ind_attract:missing build_rail from ["+coord_to_st
 					if(trace_list.len() > settings.get_station_coverage() * 2)
 					{
 						d = d - coord(trace_list[trace_list.len()-2].x-trace_list.top().x, trace_list[trace_list.len()-2].y-trace_list.top().y).to_dir()
-						if(dir.is_threeway(trace_list.top().get_neighbour(wt_rail, d).get_way_dirs(wt_rail)))
+						if(d != 0 && dir.is_threeway(trace_list.top().get_neighbour(wt_rail, d).get_way_dirs(wt_rail)))
 						{
 							local temp_halt = finder.find_nearest_halt(trace_list.top(), [wt_rail], 2, pl)
 							if(temp_halt && !(finder.is_same_halt(halt, temp_halt)))
