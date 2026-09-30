@@ -472,14 +472,13 @@ class astar_builder extends astar
 						move += cost_curve * 2
 					}
 				}
-				local ground_on_flg = false
+
 				// is there already way?
 				if (way != null) {
 					switch (way.get_waytype())
 					{
 						case wt_road:
 						if (to.has_way(wt_road)) {
-							ground_on_flg = true
 							if (to.get_halt()) {
 								if(!(is_member(d ,finder.divide_dir(dir.double(to.get_way_dirs(wt_road)))))) {
 									continue
@@ -496,11 +495,7 @@ class astar_builder extends astar
 						break
 						
 						case wt_rail:
-						if (to.has_way(wt_rail)) {
-							if(is_member(to, rail_OK_area)) {
-								ground_on_flg = true
-							}
-						}
+
 						break
 					}
 				}
@@ -521,8 +516,6 @@ class astar_builder extends astar
 						// スロープの向きはあってても段差があるパターン
 						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
 						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
-						// fromが整地対象でfromまでと向きが異なるパターン
-						if(cnode.flag == 2 && cnode.dir != d){ flat_field_flg = 2 }
 						// 線路敷設時、段差2のスロープの時、flat_field_flg=2にする
 						if(way != null && way.get_waytype() == wt_rail && check_double_slope(to))
 						{
@@ -549,11 +542,11 @@ class astar_builder extends astar
 					// 既存線路タイルは敷設終点以外はオーバーパスさせる
 					if(to.has_way(wt_rail) && !(is_member(to, rail_OK_area)))
 					{
-						if(from.has_way(wt_rail)){ continue }
+						if(from.has_way(wt_rail) && dir.backward(from.get_way_dirs(wt_rail)) != d){ continue }
 						flat_field_flg = -1
 					}
 				}else{
-					if(to.is_empty() || ground_on_flg)
+					if(to.is_empty())
 					{
 						if(check_slope_dir(to.get_slope(), d))
 						{
@@ -732,12 +725,12 @@ class astar_builder extends astar
 								tile_list.append(tile_x(route[jj].x, route[jj].y, route[jj].z))
 								jj++
 							}
-gui.add_message_at(our_player,"aster1:["+coord_to_string(route[i-1])+"]",route[i-1])
+gui.add_message_at(our_player,"aster1:["+coord3d_to_string(route[i-1])+"]",route[i-1])
 for(local kk=0; kk < tile_list.len(); kk++)
 {
-  gui.add_message_at(our_player,"aster2:["+coord_to_string(tile_list[kk])+"]",tile_list[kk])
+  gui.add_message_at(our_player,"aster2:["+coord3d_to_string(tile_list[kk])+"]",tile_list[kk])
 }
-gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj])
+gui.add_message_at(our_player,"aster3:["+coord3d_to_string(route[jj])+"]",route[jj])
 							terraform(tile_x(route[i-1].x, route[i-1].y, route[i-1].z), tile_list, tile_x(route[jj].x, route[jj].y, route[jj].z))
 
 							// 整地に伴い高さを更新
@@ -746,6 +739,7 @@ gui.add_message_at(our_player,"aster3:["+coord_to_string(route[jj])+"]",route[jj
 								route[kk].z = finder.coord2D_to_tile(coord(route[kk].x, route[kk].y)).z
 								route[kk].flag = 0
 							}
+							route[jj].z = finder.coord2D_to_tile(coord(route[jj].x, route[jj].y)).z
 						}
 					}
 					
@@ -1097,6 +1091,17 @@ function terraform(from, tile_list, end)
 				z--
 			}
 		}
+	}
+	//flag=2のタイルリストの整地だけで段差が消えないケース(段差は1のはず)
+	local d = coord(end.x-tile_list.top().x, end.y-tile_list.top().y).to_dir()
+	if(z < end.z)
+	{
+		command_x.set_slope(our_player, end, slope.all_down_slope)
+		command_x.set_slope(our_player, end, dir.to_slope(d))
+	}
+	if(z > end.z)
+	{
+		command_x.set_slope(our_player, end, dir.to_slope(dir.backward(d)))
 	}
 }
 
