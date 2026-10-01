@@ -407,7 +407,7 @@ class astar_builder extends astar
 				continue
 			}
 			// do not slope side
-			if (cnode.flag == 0 && from.get_slope != slope.flat && !(check_slope_dir(from.get_slope(), d))) {
+			if (cnode.flag == 0 && from.get_slope != slope.flat && !(check_slope_dir(from, d))) {
 				continue
 			}
 			local to = from.get_neighbour(wt_all, d)
@@ -467,7 +467,7 @@ class astar_builder extends astar
 						move += cost_curve * 2
 					}
 					// ゴール近傍じゃない地点で整地が必要ならコスト追加
-					if(!(check_slope_dir(to.get_slope(), d)) && dist > 5)
+					if(!(check_slope_dir(to, d)) && dist > 5)
 					{
 						move += cost_curve * 2
 					}
@@ -512,16 +512,13 @@ class astar_builder extends astar
 						if(abs(from.z - to.z) == 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ flat_field_flg = -1 }
 						if(way != null && way.get_waytype() == wt_rail && abs(from.z - to.z) > 1 && from.get_slope() == slope.flat && to.get_slope() == slope.flat){ continue }
 						// スロープの向きと建設方向の向きが合わないパターン
-						if(!(check_slope_dir(from.get_slope(), d)) || !(check_slope_dir(to.get_slope(), d))){ flat_field_flg = 2 }
-						// スロープの向きはあってても段差があるパターン
-						if(from.z - to.z != 1 && from.get_slope() == slope.flat && slope.to_dir(to.get_slope()) == dir.backward(d)){ flat_field_flg = 2 }
-						if(from.z - to.z != -1 && to.get_slope() == slope.flat && slope.to_dir(from.get_slope()) == d){ flat_field_flg = 2 }
+						if(!(check_slope_dir(from, d)) || !(check_slope_dir(to, d))){ flat_field_flg = 2 }
 						// 線路敷設時、段差2のスロープの時、flat_field_flg=2にする
 						if(way != null && way.get_waytype() == wt_rail && check_double_slope(to))
 						{
 							if(from.z == to.z)
 							{
-								if(check_slope_dir(to.get_slope(), d))
+								if(check_slope_dir(to, d))
 								{
 									flat_field_flg = 3
 									// TODO : flat_field_flg = 3はトンネルにしたい(とりまスキップ)
@@ -548,7 +545,7 @@ class astar_builder extends astar
 				}else{
 					if(to.is_empty())
 					{
-						if(check_slope_dir(to.get_slope(), d))
+						if(check_slope_dir(to, d))
 						{
 							if(to.get_slope() == slope.flat && !(cnode.flag == 2 && cnode.dir != d))
 							{
@@ -559,7 +556,7 @@ class astar_builder extends astar
 						}else{
 							// 始点と終点が共に平坦でない場合、始点のflat_field_flgが
 							// 2でないなら終点のノードを開かない
-							if(!(check_slope_dir(from.get_slope(), d)) && cnode.flag != 2){ continue }
+							if(!(check_slope_dir(from, d)) && cnode.flag != 2){ continue }
 							if((abs(from.z - to.z) == 1 && cnode.dir == d) || from.z == to.z){ flat_field_flg = 2 }
 						}
 					}
@@ -1107,14 +1104,25 @@ function terraform(from, tile_list, end)
 
 /***************************************
  * スロープの向きが指定方向と一致するかチェック
- * 引数：スロープ(slope)、向き(dir)
+ * 引数：対象タイル(tile_x)、向き(dir)
  * 戻り値：一致(true)、不一致(false)
  ***************************************/
-function check_slope_dir(target_slope, d)
+function check_slope_dir(tile, d)
 {
+	local target_slope = tile.get_slope()
 	if(target_slope == slope.flat){ return true }
 	local slope_dir = slope.to_dir(target_slope)
-	if(is_member(slope_dir, [d, dir.backward(d)])){ return true }
+	// tile.get_slope()で取得したスロープは下り方向の方角を持つ slope.to_dir()で取得した方向はスロープ登り方向を返す
+	if(slope_dir == d)
+	{
+		local neighbor_tile = tile.get_neighbour(wt_all, slope_dir)
+		if(neighbor_tile.z - tile.z == 1){ return true }
+	}
+	if(slope_dir == dir.backward(d))
+	{
+		local neighbor_tile = tile.get_neighbour(wt_all, slope_dir)
+		if(neighbor_tile.z - tile.z == 1){ return true }
+	}
 	return false
 }
 
