@@ -1339,13 +1339,18 @@ gui.add_message_at(pl,"insert_ind_attract:missing build_rail from ["+coord_to_st
 		local end_rail_dir = end.get_way_dirs(wt_rail)
 		local neighbor_end = end.get_neighbour(wt_rail, end_rail_dir)
 		// ‰wŠÔ‚Ìü˜H•~İ
-		//local rtn = as.search_route([start], [end])
 		as.counter_max_flg = true
-		local rtn = search_route_for_rail(as, start, end, pl)
-		if(rtn != null)
+		local rtn = as.search_route([start], [end])
+		if("err" in rtn){ return start }
+		if("end" in rtn)
 		{
-			if("start" in rtn){ return finder.coord2D_to_tile(rtn.start) }
+			if(!(compare_coord(end, rtn.end))){ return finder.coord2D_to_tile(rtn.end) }
 		}
+//		local rtn = search_route_for_rail(as, start, end, pl)
+//		if(rtn != null)
+//		{
+//			if("start" in rtn){ return finder.coord2D_to_tile(rtn.start) }
+//		}
 	 }
 
 	/***************************************

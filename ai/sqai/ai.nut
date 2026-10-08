@@ -455,11 +455,11 @@ local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
 
-if(our_player_nr == 2){
-local aaa = finder.coord2D_to_tile(coord(333,82))
-local bbb = finder.coord2D_to_tile(coord(488,277))
-station.update_junction_station(our_player, aaa.get_halt(), bbb)
-}
+local aaa = finder.coord2D_to_tile(coord(745,157))
+local bbb = finder.coord2D_to_tile(coord(738,149))
+gui.add_message_at(our_player, aaa.is_water()+","+aaa.has_way(wt_water)+","+aaa.has_ways(),world.get_time())
+gui.add_message_at(our_player, bbb.is_water()+","+bbb.has_way(wt_water)+","+bbb.has_ways(),world.get_time())
+
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/
 	if (s._step % 1930 == 10 * our_player_nr)

@@ -436,10 +436,19 @@ class astar_builder extends astar
 				// 線路の場合、90度カーブを回避
 				if(way != null && way.get_waytype() == wt_rail)
 				{
-					if(d == cnode.dir && cnode.previous && d != cnode.previous.dir && cnode.previous.previous && cnode.previous.dir == cnode.previous.previous.dir)
+					local node_list = [{x=cnode.x, y=cnode.y, z=cnode.z, dir=cnode.dir}]
+					if(cnode.previous)
+					{
+						node_list.append({x=cnode.previous.x, y=cnode.previous.y, z=cnode.previous.z, dir=cnode.previous.dir})
+						if(cnode.previous.previous){ node_list.append({x=cnode.previous.previous.x, y=cnode.previous.previous.y, z=cnode.previous.previous.z, dir=cnode.previous.previous.dir}) }
+					}
+					local continue_flg = check_right_angle(d, node_list)
+					if(continue_flg){ continue }
+				
+/*					if(d == cnode.dir && cnode.previous && d != cnode.previous.dir && cnode.previous.previous && cnode.previous.dir == cnode.previous.previous.dir)
 					{
 						continue
-					}
+					}*/
 					// ゴール直前の90度カーブを回避(スタート直後の90度カーブ回避の条件は煩雑なので設定しない)
 					if(d != cnode.dir && cnode.previous && cnode.previous.dir == cnode.dir && cnode.dist <= 10)
 					{
@@ -456,11 +465,11 @@ class astar_builder extends astar
 					{
 						move = cost_straight
 					}*/
-					// 線路で180度カーブは使ってほしくないので回避
+/*					// 線路で180度カーブは使ってほしくないので回避
 					if(d != cnode.dir && cnode.previous && d == dir.backward(cnode.previous.dir))
 					{
 						continue
-					}
+					}*/
 					// 直線->カーブに変わる地点でコスト追加(線路をグネグネさせたくないため)
 					if(d != cnode.dir && cnode.previous && cnode.dir == cnode.previous.dir)
 					{
@@ -564,6 +573,22 @@ class astar_builder extends astar
 
 				if(flat_field_flg >= 0)
 				{
+					if(flat_field_flg == 0)
+					{
+						local temp_dist = 1
+						// 線路敷設時は90度カーブを回避する
+						if(way != null && way.get_waytype() == wt_rail && cnode.previous)
+						{
+							temp_dist = abs(cnode.x-cnode.previous.x)+abs(cnode.y-cnode.previous.y)
+						}
+						if(cnode.previous && (d == cnode.dir || temp_dist == 1))
+						{
+							local tbl_info = line_of_sight(cnode, to, d)
+							to = tbl_info.tile
+							move += abs(dist - tbl_info.dist)
+							dist = tbl_info.dist
+						}
+					}
 //					if(flat_field_flg == 2){ move += cost_curve * 2 }
 					local cost   = cnode.cost + move
 					local weight = cost + dist
@@ -662,6 +687,71 @@ class astar_builder extends astar
 			}
 		}
 	}
+
+/***************************************
+ * 障害物チェック
+ * 引数：ノード(table)、ノードに登録予定タイル(tile_x)、向き(dir)
+ * 戻り値：チェック後情報(table)
+ * 　　　　　tile：ノード登録予定タイル(tile_x)
+ * 　　　　　dist：距離(int)
+ ***************************************/
+  function line_of_sight(cnode, tile, d)
+  {
+  	local rtn = {tile = tile, dist = estimate_distance(tile)}
+  	local neighbor_tile = tile.get_neighbour(wt_all, d)
+  	local ten_neighbor_tile = finder.coord2D_to_tile(finder.move_coord(tile, d, 10))
+  	// way設置可能で目的地への最近接タイルを算出
+  	while(neighbor_tile && neighbor_tile.is_empty() && check_slope_dir(neighbor_tile, d) && !(is_member(neighbor_tile, prohibit_area)))
+  	{
+  		local dist = estimate_distance(neighbor_tile)
+  		// ゴール近傍は障害物チェックしない
+  		// 10マス先が湖タイルに出た場合、袋小路に入るのを回避するためチェックストップ
+  		if(cnode.dist < dist || dist < 10*cost_straight || !(ten_neighbor_tile) || ten_neighbor_tile.is_water()){ break }
+  		rtn = {tile = neighbor_tile, dist = dist}
+  		neighbor_tile = neighbor_tile.get_neighbour(wt_all, d)
+  		ten_neighbor_tile = ten_neighbor_tile.get_neighbour(wt_all, d)
+  	}
+  	return rtn
+  }
+
+/***************************************
+ * 直角カーブチェック
+ * 引数：向き(dir)、ノードリスト(tableのリスト)
+ * 戻り値：判定結果
+ ***************************************/
+  function check_right_angle(d, node_list)
+  {
+  	if(node_list.len() < 2){ return false }
+	// 180度カーブをチェック
+	if(d != node_list[0].dir && d == dir.backward(node_list[1].dir))
+	{
+		return true
+	}
+  	for(local ii = 0; ii < node_list.len() - 1; ii++)
+  	{
+  		local dx = node_list[ii].x - node_list[ii+1].x
+  		local dy = node_list[ii].y - node_list[ii+1].y
+  		local dist = abs(dx) + abs(dy)
+  		if(dist != 1)
+  		{
+  			dx = dx == 0 ? dx : dx / abs(dx)
+  			dy = dy == 0 ? dy : dy / abs(dy)
+  			node_list[ii+1].x = node_list[ii].x + dx
+  			node_list[ii+1].y = node_list[ii].y + dy
+  			node_list[ii+1].dir = coord(dx, dy).to_dir()
+  			if(ii == 0)
+  			{
+  				if(node_list.len() == 2){ node_list.append(node_list[ii+1]) }
+  				node_list[ii+2].x = node_list[ii+1].x + dx
+  				node_list[ii+2].y = node_list[ii+1].y + dy
+  				node_list[ii+2].dir = coord(dx, dy).to_dir()
+  				break
+  			}
+  		}
+  	}
+  	if(node_list.len() > 2 && d == node_list[0].dir && d != node_list[1].dir && node_list[1].dir == node_list[2].dir){ return true }
+  	return false
+  }
 
   function search_route(start, end)
 	{
@@ -860,7 +950,11 @@ function dump_partial_routes(routes, idx)
 	local n = 10
 	for(local ii = idx - n; ii <= idx + n; ii++)
 	{
-		gui.add_message_at(our_player,"debug:["+coord_to_string(routes[ii])+"],flag:"+routes[ii].flag,routes[ii])
+		if(ii < 0){ continue }
+		if(ii == routes.len()){ break }
+		local str = "debug"
+		if(ii == idx){ str = "critical debug" }
+		gui.add_message_at(our_player,str+":["+coord_to_string(routes[ii])+"],flag:"+routes[ii].flag,routes[ii])
 	}
 }
 
