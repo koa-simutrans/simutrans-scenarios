@@ -455,10 +455,9 @@ local rail_info = rail_manager_t()
 local station = station_manager_t()
 local vehicle = vehicle_constructor_t()
 
-local aaa = finder.coord2D_to_tile(coord(745,157))
-local bbb = finder.coord2D_to_tile(coord(738,149))
-gui.add_message_at(our_player, aaa.is_water()+","+aaa.has_way(wt_water)+","+aaa.has_ways(),world.get_time())
-gui.add_message_at(our_player, bbb.is_water()+","+bbb.has_way(wt_water)+","+bbb.has_ways(),world.get_time())
+local aaa = finder.coord2D_to_tile(coord(23,10))
+local bbb = finder.coord2D_to_tile(coord(23,57))
+rail_info.set_rail_between_station(aaa, bbb, our_player)
 
 gui.add_message_at(our_player, "test end", world.get_time())
 }*/

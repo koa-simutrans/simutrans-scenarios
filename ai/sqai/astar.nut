@@ -127,7 +127,7 @@ class astar
 		// 探索回数設定
 		local counter_max = -1
 		if (counter_max_flg && heap.len() == 1) {
-			counter_max = estimate_distance(nodes[0]) * 30
+			counter_max = estimate_distance(nodes[0]) * 20
 		}
 		local current_node = null
 		local cnt=0
@@ -444,32 +444,13 @@ class astar_builder extends astar
 					}
 					local continue_flg = check_right_angle(d, node_list)
 					if(continue_flg){ continue }
-				
-/*					if(d == cnode.dir && cnode.previous && d != cnode.previous.dir && cnode.previous.previous && cnode.previous.dir == cnode.previous.previous.dir)
-					{
-						continue
-					}*/
+
 					// ゴール直前の90度カーブを回避(スタート直後の90度カーブ回避の条件は煩雑なので設定しない)
 					if(d != cnode.dir && cnode.previous && cnode.previous.dir == cnode.dir && cnode.dist <= 10)
 					{
-						local same_pos_nodes = filter(nodes, @(a) compare_coord(a, cnode.previous) && a.dir != cnode.previous.dir)
-						if(same_pos_nodes.len() == 0)
-						{
-							continue
-						}else{
-							cnode.previous = same_pos_nodes[0]
-						}
-					}
-					/*// 斜めの線路は真っ直ぐ扱い
-					if(d != cnode.dir && cnode.previous && d == cnode.previous.dir && cnode.previous.previous && cnode.dir == cnode.previous.previous.dir)
-					{
-						move = cost_straight
-					}*/
-/*					// 線路で180度カーブは使ってほしくないので回避
-					if(d != cnode.dir && cnode.previous && d == dir.backward(cnode.previous.dir))
-					{
 						continue
-					}*/
+					}
+
 					// 直線->カーブに変わる地点でコスト追加(線路をグネグネさせたくないため)
 					if(d != cnode.dir && cnode.previous && cnode.dir == cnode.previous.dir)
 					{
@@ -573,13 +554,15 @@ class astar_builder extends astar
 
 				if(flat_field_flg >= 0)
 				{
-					if(flat_field_flg == 0)
+					// 線路敷設時はlazy theta*アルゴリズムを適用
+					if(flat_field_flg == 0 && cnode.flag == 0 && way != null && way.get_waytype() == wt_rail)
 					{
 						local temp_dist = 1
-						// 線路敷設時は90度カーブを回避する
-						if(way != null && way.get_waytype() == wt_rail && cnode.previous)
+						// 90度カーブを回避する
+						if(cnode.previous)
 						{
 							temp_dist = abs(cnode.x-cnode.previous.x)+abs(cnode.y-cnode.previous.y)
+							if(temp_dist == 1 && (cnode.dir == cnode.previous.dir || cnode.previous.dir > dir.west)){ temp_dist++ }
 						}
 						if(cnode.previous && (d == cnode.dir || temp_dist == 1))
 						{
@@ -619,7 +602,8 @@ class astar_builder extends astar
 							len++
 							continue
 						}
-						if(to.is_empty() && from.z == to.z && (from.get_slope() != slope.flat || to.get_slope() != slope.flat))
+						// tile.get_slope()で取得したスロープは下り方向の方角を持つ. slope.to_dir()で取得した方向はスロープ登り方向を返す
+						if(to.is_empty() && from.z == to.z && from.get_slope() != slope.flat && slope.to_dir(to.get_slope()) != dir.backward(d))
 						{
 							blnTwelve = true
 						}else{
@@ -700,16 +684,18 @@ class astar_builder extends astar
   	local rtn = {tile = tile, dist = estimate_distance(tile)}
   	local neighbor_tile = tile.get_neighbour(wt_all, d)
   	local ten_neighbor_tile = finder.coord2D_to_tile(finder.move_coord(tile, d, 10))
+  	local prev_dist = cnode.dist
   	// way設置可能で目的地への最近接タイルを算出
   	while(neighbor_tile && neighbor_tile.is_empty() && check_slope_dir(neighbor_tile, d) && !(is_member(neighbor_tile, prohibit_area)))
   	{
   		local dist = estimate_distance(neighbor_tile)
   		// ゴール近傍は障害物チェックしない
   		// 10マス先が湖タイルに出た場合、袋小路に入るのを回避するためチェックストップ
-  		if(cnode.dist < dist || dist < 10*cost_straight || !(ten_neighbor_tile) || ten_neighbor_tile.is_water()){ break }
+  		if(prev_dist < dist || dist < 15*cost_straight || (ten_neighbor_tile && ten_neighbor_tile.is_water())){ break }
   		rtn = {tile = neighbor_tile, dist = dist}
   		neighbor_tile = neighbor_tile.get_neighbour(wt_all, d)
-  		ten_neighbor_tile = ten_neighbor_tile.get_neighbour(wt_all, d)
+  		if(ten_neighbor_tile){ ten_neighbor_tile = ten_neighbor_tile.get_neighbour(wt_all, d) }
+  		prev_dist = dist
   	}
   	return rtn
   }
@@ -726,6 +712,13 @@ class astar_builder extends astar
 	if(d != node_list[0].dir && d == dir.backward(node_list[1].dir))
 	{
 		return true
+	}
+	// 探索開始直後のノードはdirにゴールまでの距離を格納している
+	if(node_list.top().dir > dir.west)
+	{
+		local dx = node_list[node_list.len()-2].x - node_list.top().x
+		local dy = node_list[node_list.len()-2].y - node_list.top().y
+		node_list.top().dir = coord(dx, dy).to_dir()
 	}
   	for(local ii = 0; ii < node_list.len() - 1; ii++)
   	{
@@ -785,6 +778,7 @@ class astar_builder extends astar
 			local is_tunnel_1 = is_tunnel_0
 
 			for (local i = 1; i<route.len(); i++) {
+//gui.add_message_at(our_player,"["+route[i].x+","+route[i].y+"],dir:"+route[i].dir+",dist:"+route[i].dist+",flag:"+route[i].flag,coord(route[i].x,route[i].y))
 				// remove any fields on our routes (only start & end currently)
 
 				remove_field( route[i] )
@@ -928,7 +922,7 @@ gui.add_message_at(our_player,"aster3:["+coord3d_to_string(route[jj])+"]",route[
 					}
 					err = command_x.build_bridge(our_player, route[i-1], route[i], bridger.bridge)
 					if (err) {
-						gui.add_message_at(our_player, "Failed to build bridge from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
+						gui.add_message_at(our_player, "Failed to build bridge12 from " + coord_to_string(route[i-1]) + " to " + coord_to_string(route[i]) +"\n" + err, route[i])
 		dump_partial_routes(route, i)
 						remove_wayline(route, (i - 1), way.get_waytype())
 					}
@@ -947,14 +941,14 @@ gui.add_message_at(our_player,"aster3:["+coord3d_to_string(route[jj])+"]",route[
 /* デバッグ用 建設失敗時に失敗箇所前後のデータを出力 */
 function dump_partial_routes(routes, idx)
 {
-	local n = 10
+	local n = 5
 	for(local ii = idx - n; ii <= idx + n; ii++)
 	{
 		if(ii < 0){ continue }
 		if(ii == routes.len()){ break }
 		local str = "debug"
 		if(ii == idx){ str = "critical debug" }
-		gui.add_message_at(our_player,str+":["+coord_to_string(routes[ii])+"],flag:"+routes[ii].flag,routes[ii])
+		gui.add_message_at(our_player,str+":["+coord3d_to_string(routes[ii])+"],flag:"+routes[ii].flag,routes[ii])
 	}
 }
 
@@ -1210,12 +1204,12 @@ function check_slope_dir(tile, d)
 	if(slope_dir == d)
 	{
 		local neighbor_tile = tile.get_neighbour(wt_all, slope_dir)
-		if(neighbor_tile.z - tile.z == 1){ return true }
+		if(neighbor_tile && neighbor_tile.z - tile.z == 1){ return true }
 	}
 	if(slope_dir == dir.backward(d))
 	{
 		local neighbor_tile = tile.get_neighbour(wt_all, slope_dir)
-		if(neighbor_tile.z - tile.z == 1){ return true }
+		if(neighbor_tile && neighbor_tile.z - tile.z == 1){ return true }
 	}
 	return false
 }

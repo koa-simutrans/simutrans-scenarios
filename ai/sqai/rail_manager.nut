@@ -1332,6 +1332,15 @@ gui.add_message_at(pl,"insert_ind_attract:missing build_rail from ["+coord_to_st
 				prohibit_area.append(neighbor_tile)
 			}
 		}
+		// 敷設終了地点に270°カーブで接続するのを回避するため
+		// 敷設終了地点から対の線路終端までを禁止エリアに追加
+		if(dir.is_single(end.get_way_dirs(wt_rail)))
+		{
+			local station = station_manager_t()
+			tile_list = station.trace_way(end, wt_rail, end.get_way_dirs(wt_rail), @(a) 1)
+			tile_list = tile_list.slice(1)
+			prohibit_area = combine(prohibit_area, tile_list)
+		}
 
 		as.prohibit_area = prohibit_area
 		
